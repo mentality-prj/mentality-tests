@@ -3,11 +3,18 @@ import { expect, test } from '@playwright/test';
 test('authenticated same-origin mood write persists under a disposable tenant', async ({
   request,
 }) => {
-  if (process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1') {
-    throw new Error('Mood mutation requires explicit disposable tenant confirmation');
+  const origin = new URL(process.env.E2E_BASE_URL!).origin;
+  const allowlistedOrigin = process.env.E2E_ALLOWED_MUTATION_ORIGIN;
+  const confirmed = process.env.E2E_DISPOSABLE_TENANT_CONFIRMED;
+  if (!allowlistedOrigin || origin !== allowlistedOrigin || confirmed !== '1') {
+    throw new Error(
+      'Mood mutation refused: target origin must match E2E_ALLOWED_MUTATION_ORIGIN and disposable tenant must be confirmed',
+    );
+  }
+  if (['dzvin.co', 'www.dzvin.co', 'mentality-web.vercel.app'].includes(new URL(origin).hostname)) {
+    throw new Error('Mood mutation refused: production host is not a disposable test tenant');
   }
 
-  const origin = new URL(process.env.E2E_BASE_URL!).origin;
   const tag = 'e2e-isolated-' + Date.now();
   const posted = await request.post('/api/backend/mood-record?withAiExplanation=false', {
     headers: { origin },
