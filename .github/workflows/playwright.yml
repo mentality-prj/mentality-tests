@@ -86,7 +86,8 @@ jobs:
         env:
           E2E_BASE_URL: ${{ inputs.base_url }}
           RUN_MOOD_MUTATION_E2E: '1'
-          E2E_DISPOSABLE_TENANT_CONFIRMED: '1'
+          E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+          E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
           E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
         run: pnpm exec playwright test --project=disposable-mood-mutation-chromium
       - name: Real Zitadel PKCE browser login
