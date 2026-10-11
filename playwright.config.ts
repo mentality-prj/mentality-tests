@@ -1,71 +1,65 @@
+import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
-import { STORAGE_STATE_PATH } from './global-setup';
+import { AUTH_STATE_PATH, prepareAuthState } from './global-setup';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+const runAuth = process.env.RUN_AUTH_E2E === '1';
+const runLogin = process.env.RUN_LOGIN_E2E === '1';
+const baseURL = process.env.E2E_BASE_URL;
+
+if (!baseURL && (process.env.RUN_REMOTE_SMOKE === '1' || runAuth || runLogin)) {
+  throw new Error('E2E_BASE_URL is required for remote browser tests');
+}
+
+// No project uses a production account or a cached Google OAuth session by default.
 export default defineConfig({
   testDir: './tests',
-  globalSetup: require.resolve('./global-setup'),
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 1 : 0,
+  workers: 1,
+  timeout: 40_000,
+  expect: { timeout: 10_000 },
+  reporter: process.env.CI ? 'list' : 'html',
+  globalSetup: runAuth ? prepareAuthState : undefined,
   use: {
-    storageState: STORAGE_STATE_PATH,
-    trace: 'on-first-retry',
+    baseURL,
+    trace: 'off',
+    screenshot: 'off',
+    video: 'off',
+    actionTimeout: 12_000,
   },
-
   projects: [
     {
-      // Uses the real installed Chrome locally to avoid Google's automation detection.
-      // In CI the channel falls back to Playwright's bundled Chromium (storageState covers auth).
-      name: 'chromium',
+      name: 'public-chromium',
+      testMatch: '**/*.public.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        channel: process.env.CI ? undefined : 'chrome',
-        launchOptions: {
-          args: ['--disable-blink-features=AutomationControlled'],
-        },
+        storageState: { cookies: [], origins: [] },
       },
     },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    ...(runAuth
+      ? [
+          {
+            name: 'authenticated-chromium',
+            testMatch: '**/*.auth.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: AUTH_STATE_PATH,
+            },
+          },
+        ]
+      : []),
+    ...(runLogin
+      ? [
+          {
+            name: 'zitadel-login-chromium',
+            testMatch: '**/*.login.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: { cookies: [], origins: [] },
+            },
+          },
+        ]
+      : []),
   ],
-
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });

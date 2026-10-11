@@ -1,91 +1,70 @@
-# mentality-tests
+# mentality-tests — Zitadel / BFF E2E
 
-Цей репозиторій містить автоматизовані end-to-end тести для проєкту [Mentality](https://dzvin.co), написані з використанням Playwright та TypeScript.
+This repository validates the **Next.js 16 / Zitadel / NestJS BFF** authorization boundary
+proposed in [mentality-web PR #437](https://github.com/mentality-prj/mentality-web/pull/437).
+The previous Google OAuth/NextAuth tests and interactive global setup were removed.
 
-## Призначення
+## Three independent modes
 
-Тести призначені для перевірки функціональності вебзастосунку Mentality, забезпечення стабільності та якості продукту.
+1. **Anonymous security smoke** — no credentials; checks protected redirects, token API,
+   BFF authorization, CSRF origin validation, invalid callback. Run only against a
+   deployment containing PR #437.
+2. **Authenticated session** — dedicated *low-privilege* test user. A valid Playwright
+   storageState from that deployment is provided as a base64 secret; checks JWT isolation,
+   HttpOnly/Secure cookie, protected page hard reload, BFF, denied admin, and (if supplied)
+   a foreign-tenant resource.
+3. **Real Zitadel login** — separate opt-in browser round-trip: login redirect, PKCE S256,
+   authorization code exchange, verified session. Uses a dedicated test-only Zitadel account
+   and tenant-specific CSS selectors. No production personal accounts, Google passwords or
+   direct manipulation of private cookies.
 
-## Як запускати тести
+### Setup
 
-1. Встановіть залежності:
-   ```sh
-   pnpm install
-   ```
-2. Запустіть тести:
-   ```sh
-   pnpm test
-   ```
+Use Node 22 and pnpm 10:
 
-## Як писати нові тести
+    pnpm install --frozen-lockfile
+    pnpm exec playwright install chromium
+    pnpm lint
+    pnpm typecheck
+    pnpm prettier
+    pnpm exec playwright test --list
 
-- Додавайте нові файли у папку `tests/`.
-- Використовуйте Playwright API та TypeScript для написання тестів.
-- Дивіться приклади у `tests/example.spec.ts`.
+Set E2E_BASE_URL to the URL of the deployment under test (for example a dedicated Vercel
+preview with BFF changes). URL must not be the repository URL.
 
-## Додатково
+    E2E_BASE_URL=https://preview.example pnpm test -- --project=public-chromium
 
-- Для запуску тестів у різних браузерах використовуйте відповідні параметри Playwright.
-- Для генерації репортів використовуйте команду:
-  ```sh
-  pnpm test -- --reporter=html
-  ```
+Authenticated run (never commit the state file, and do not print the secret):
 
----
+    RUN_AUTH_E2E=1
+    E2E_BASE_URL=https://preview.example
+    E2E_AUTH_STORAGE_STATE_BASE64=<base64 Playwright storageState JSON>
+    pnpm exec playwright test --project=authenticated-chromium
 
-_Проєкт підтримується командою Mentality (dzvin.co)._
+Optional E2E_FOREIGN_RESOURCE_PATH must be a known GET-only BFF route in a **different
+test tenant**, for example /api/backend/research/projects/<foreign-id>. Without it,
+that one test explicitly skips; cross-tenant isolation is *not* certified.
 
-## Корисні Playwright команди
+Real IdP round-trip:
 
-```
-pnpm exec playwright test
-   Runs the end-to-end tests.
+    RUN_LOGIN_E2E=1
+    E2E_ZITADEL_USERNAME=<test account>
+    E2E_ZITADEL_PASSWORD=<test password>
+    E2E_ZITADEL_USERNAME_SELECTOR=<selector>
+    E2E_ZITADEL_PASSWORD_SELECTOR=<selector>
+    E2E_ZITADEL_SUBMIT_SELECTOR=<selector>
+    pnpm exec playwright test --project=zitadel-login-chromium
 
-pnpm exec playwright test --ui
-   Starts the interactive UI mode.
+### CI and release criteria
 
-pnpm exec playwright test --project=chromium
-   Runs the tests only on Desktop Chrome.
+Pull requests run lint, formatting, typecheck, test discovery. They **do not** pretend that
+these checks are live authenticated E2E. The remote Playwright workflow is started manually
+with a target URL. Auth/login jobs are opt-in, use GitHub secrets and cannot run on forks.
 
-pnpm exec playwright test example
-   Runs the tests in a specific file.
+Test state is written to gitignored \`playwright/.auth/\`, with restricted permissions;
+browser traces, videos and screenshots are disabled for all auth tests. Do not upload
+authenticated Playwright reports, request dumps or storage state.
 
-pnpm exec playwright test --debug
-   Runs the tests in debug mode.
-
-pnpm exec playwright codegen
-   Auto generate tests with Codegen.
-```
-
-Ми радимо почати з:
-
-pnpm exec playwright test
-
-та ознайомитись з файлами:
-
-- `tests/example.spec.ts` — приклад end-to-end тесту
-- `playwright.config.ts` — конфігурація Playwright Test
-
-Детальніше: https://playwright.dev/docs/intro
-
-## Якість коду: лінтери, форматування, перевірка типів
-
-У цьому проєкті налаштовано ESLint (з підтримкою TypeScript і Playwright), Prettier та перевірку типів TypeScript.
-
-### Основні команди
-
-```
-pnpm run lint
-   Перевірка коду ESLint
-
-pnpm run format
-   Форматування коду Prettier
-
-pnpm run format:check
-   Перевірка форматування Prettier
-
-pnpm run typecheck
-   Перевірка типів TypeScript (tsc --noEmit)
-```
-
-> Рекомендовано запускати lint, format:check та typecheck у CI або перед комітом, щоб уникати помилок у тестах.
+**Release gate (#439):** login + refresh + logout + authorization / tenant isolation must
+be checked against a deployed preview and dedicated test data before merging mentality-web
+PR #437. The automated checks alone are not evidence of production readiness.
