@@ -1,70 +1,52 @@
-# mentality-tests — Zitadel / BFF E2E
+# mentality-tests
 
-This repository validates the **Next.js 16 / Zitadel / NestJS BFF** authorization boundary
-proposed in [mentality-web PR #437](https://github.com/mentality-prj/mentality-web/pull/437).
-The previous Google OAuth/NextAuth tests and interactive global setup were removed.
+Playwright end-to-end tests for the [dzvin.co](https://dzvin.co) Next.js / Zitadel / NestJS integration. These tests target the authentication changes in [mentality-web PR #437](https://github.com/mentality-prj/mentality-web/pull/437).
 
-## Three independent modes
+## Test modes
 
-1. **Anonymous security smoke** — no credentials; checks protected redirects, token API,
-   BFF authorization, CSRF origin validation, invalid callback. Run only against a
-   deployment containing PR #437.
-2. **Authenticated session** — dedicated *low-privilege* test user. A valid Playwright
-   storageState from that deployment is provided as a base64 secret; checks JWT isolation,
-   HttpOnly/Secure cookie, protected page hard reload, BFF, denied admin, and (if supplied)
-   a foreign-tenant resource.
-3. **Real Zitadel login** — separate opt-in browser round-trip: login redirect, PKCE S256,
-   authorization code exchange, verified session. Uses a dedicated test-only Zitadel account
-   and tenant-specific CSS selectors. No production personal accounts, Google passwords or
-   direct manipulation of private cookies.
+- **Public security smoke:** Anonymous redirects, BFF authorization, CSRF, JWT response isolation and invalid OIDC callback.
+- **Authenticated browser:** HttpOnly cookies, validated session, page reload, BFF, admin denial, refresh/logout and optional cross-tenant checks.
+- **Real Zitadel login:** Authorization-code PKCE S256 round-trip with an isolated Zitadel test account.
 
-### Setup
+PR CI performs static validation and Playwright test discovery. It does **not** run authenticated checks against production.
 
-Use Node 22 and pnpm 10:
+## Local setup
 
-    pnpm install --frozen-lockfile
-    pnpm exec playwright install chromium
-    pnpm lint
-    pnpm typecheck
-    pnpm prettier
-    pnpm exec playwright test --list
+Requires Node.js 22 and pnpm 10 (use the version pinned in `package.json`).
 
-Set E2E_BASE_URL to the URL of the deployment under test (for example a dedicated Vercel
-preview with BFF changes). URL must not be the repository URL.
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm lint
+pnpm prettier
+pnpm typecheck
+pnpm exec playwright test --list
+```
 
-    E2E_BASE_URL=https://preview.example pnpm test -- --project=public-chromium
+Run anonymous smoke against the **deployed preview of PR #437**:
 
-Authenticated run (never commit the state file, and do not print the secret):
+```bash
+E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=public-chromium
+```
 
-    RUN_AUTH_E2E=1
-    E2E_BASE_URL=https://preview.example
-    E2E_AUTH_STORAGE_STATE_BASE64=<base64 Playwright storageState JSON>
-    pnpm exec playwright test --project=authenticated-chromium
+Run a dedicated low-privilege authenticated account:
 
-Optional E2E_FOREIGN_RESOURCE_PATH must be a known GET-only BFF route in a **different
-test tenant**, for example /api/backend/research/projects/<foreign-id>. Without it,
-that one test explicitly skips; cross-tenant isolation is *not* certified.
+```bash
+RUN_AUTH_E2E=1 E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=authenticated-chromium
+```
 
-Real IdP round-trip:
+Set `E2E_AUTH_STORAGE_STATE_BASE64` to the base64-encoded Playwright storageState for that preview and test user. The local state is written to the gitignored `playwright/.auth/` directory. Never commit or print it.
 
-    RUN_LOGIN_E2E=1
-    E2E_ZITADEL_USERNAME=<test account>
-    E2E_ZITADEL_PASSWORD=<test password>
-    E2E_ZITADEL_USERNAME_SELECTOR=<selector>
-    E2E_ZITADEL_PASSWORD_SELECTOR=<selector>
-    E2E_ZITADEL_SUBMIT_SELECTOR=<selector>
-    pnpm exec playwright test --project=zitadel-login-chromium
+For cross-tenant isolation, set `E2E_FOREIGN_RESOURCE_PATH` to a known GET-only BFF endpoint for a resource in another test tenant. Without it, that single case explicitly skips and tenant isolation is **not certified**.
 
-### CI and release criteria
+For the real login round-trip, set `RUN_LOGIN_E2E=1` and provide `E2E_ZITADEL_USERNAME`, `E2E_ZITADEL_PASSWORD`, `E2E_ZITADEL_USERNAME_SELECTOR`, `E2E_ZITADEL_PASSWORD_SELECTOR`, and `E2E_ZITADEL_SUBMIT_SELECTOR`. Then run:
 
-Pull requests run lint, formatting, typecheck, test discovery. They **do not** pretend that
-these checks are live authenticated E2E. The remote Playwright workflow is started manually
-with a target URL. Auth/login jobs are opt-in, use GitHub secrets and cannot run on forks.
+```bash
+E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=zitadel-login-chromium
+```
 
-Test state is written to gitignored `playwright/.auth/`, with restricted permissions;
-browser traces, videos and screenshots are disabled for all auth tests. Do not upload
-authenticated Playwright reports, request dumps or storage state.
+## GitHub Actions
 
-**Release gate (#439):** login + refresh + logout + authorization / tenant isolation must
-be checked against a deployed preview and dedicated test data before merging mentality-web
-PR #437. The automated checks alone are not evidence of production readiness.
+Use **Zitadel / BFF Remote E2E** → **Run workflow**. Supply the preview URL and optionally enable authenticated/session or real-login scenarios. Store sensitive values in the protected `e2e` environment. No production personal accounts, Google passwords, Playwright traces, screenshots or raw authenticated artifacts are required.
+
+The release gate in [mentality-web #439](https://github.com/mentality-prj/mentality-web/issues/439) requires executing the real browser tests against a configured preview. Static checks alone are not a production authorization PASS.
