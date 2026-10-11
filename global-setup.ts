@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import type { FullConfig } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -16,7 +15,7 @@ type SessionState = {
   origins: unknown[];
 };
 
-export async function prepareAuthState(_config: FullConfig): Promise<void> {
+export async function prepareAuthState(): Promise<void> {
   const encoded = process.env.E2E_AUTH_STORAGE_STATE_BASE64;
   if (!encoded) {
     throw new Error('RUN_AUTH_E2E requires E2E_AUTH_STORAGE_STATE_BASE64');
@@ -45,7 +44,9 @@ export async function prepareAuthState(_config: FullConfig): Promise<void> {
         app.hostname.endsWith('.' + cookie.domain.replace(/^\./, ''))),
   );
   if (!matching) {
-    throw new Error('Session state lacks a non-expired HttpOnly auth-tokens cookie for E2E_BASE_URL');
+    throw new Error(
+      'Session state lacks a non-expired HttpOnly auth-tokens cookie for E2E_BASE_URL',
+    );
   }
   mkdirSync(join(process.cwd(), 'playwright', '.auth'), { recursive: true });
   writeFileSync(AUTH_STATE_PATH, JSON.stringify(state), { mode: 0o600 });

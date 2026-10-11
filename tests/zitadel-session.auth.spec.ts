@@ -2,9 +2,7 @@ import { expect, test } from '@playwright/test';
 
 function assertNoSecrets(value: unknown): void {
   const json = JSON.stringify(value);
-  expect(json).not.toMatch(
-    /"(?:(?:access|refresh|id)[_-]?token|OAuthToken|client_secret)"\s*:/i,
-  );
+  expect(json).not.toMatch(/"(?:(?:access|refresh|id)[_-]?token|OAuthToken|client_secret)"\s*:/i);
 }
 
 test.describe('Zitadel authenticated session / BFF', () => {
@@ -56,7 +54,10 @@ test.describe('Zitadel authenticated session / BFF', () => {
 
   test('cross-tenant resource ID is inaccessible', async ({ request }) => {
     const path = process.env.E2E_FOREIGN_RESOURCE_PATH;
-    test.skip(!path, 'Set E2E_FOREIGN_RESOURCE_PATH from a different test tenant to enforce isolation');
+    test.skip(
+      !path,
+      'Set E2E_FOREIGN_RESOURCE_PATH from a different test tenant to enforce isolation',
+    );
     expect(path).toMatch(/^\/api\/backend\/[A-Za-z0-9/_?&=.%~-]+$/);
     const res = await request.get(path!);
     expect([403, 404]).toContain(res.status());
@@ -103,5 +104,4 @@ test.describe('Zitadel authenticated session / BFF', () => {
     const after = await request.get('/api/auth/session');
     expect(after.status()).toBe(401);
   });
-
 });
