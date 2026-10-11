@@ -6,6 +6,7 @@ Playwright end-to-end tests for the [dzvin.co](https://dzvin.co) Next.js / Zitad
 
 - **Public security smoke:** Anonymous redirects, BFF authorization, CSRF, JWT response isolation and invalid OIDC callback.
 - **Authenticated browser:** HttpOnly cookies, validated session, page reload, BFF, admin denial, refresh/logout and optional cross-tenant checks.
+- **Privileged roles:** Dedicated admin, company and research identities validate authorized UI and cross-role rejection.
 - **Real Zitadel login:** Authorization-code PKCE S256 round-trip with an isolated Zitadel test account.
 
 PR CI performs static validation and Playwright test discovery. It does **not** run authenticated checks against production.
@@ -39,6 +40,8 @@ Set `E2E_AUTH_STORAGE_STATE_BASE64` to the base64-encoded Playwright storageStat
 
 For cross-tenant isolation, set `E2E_FOREIGN_RESOURCE_PATH` to a known GET-only BFF endpoint for a resource in another test tenant. Without it, that single case explicitly skips and tenant isolation is **not certified**.
 
+For privileged-role coverage, set `RUN_ROLE_E2E=1` with `E2E_ADMIN_STORAGE_STATE_BASE64`, `E2E_COMPANY_STORAGE_STATE_BASE64`, and `E2E_RESEARCH_STORAGE_STATE_BASE64`. Each account must belong to the preview's test tenant and have the named role.
+
 For the real login round-trip, set `RUN_LOGIN_E2E=1` and provide `E2E_ZITADEL_USERNAME`, `E2E_ZITADEL_PASSWORD`, `E2E_ZITADEL_USERNAME_SELECTOR`, `E2E_ZITADEL_PASSWORD_SELECTOR`, and `E2E_ZITADEL_SUBMIT_SELECTOR`. Then run:
 
 ```bash
@@ -47,6 +50,6 @@ E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=zitadel
 
 ## GitHub Actions
 
-Use **Zitadel / BFF Remote E2E** → **Run workflow**. Supply the preview URL and optionally enable authenticated/session or real-login scenarios. Store sensitive values in the protected `e2e` environment. No production personal accounts, Google passwords, Playwright traces, screenshots or raw authenticated artifacts are required.
+Use **Zitadel / BFF Remote E2E** → **Run workflow**. Supply the preview URL and optionally enable authenticated/session, privileged-role or real-login scenarios. Store sensitive values in the protected `e2e` environment. No production personal accounts, Google passwords, Playwright traces, screenshots or raw authenticated artifacts are required.
 
 The release gate in [mentality-web #439](https://github.com/mentality-prj/mentality-web/issues/439) requires executing the real browser tests against a configured preview. Static checks alone are not a production authorization PASS.

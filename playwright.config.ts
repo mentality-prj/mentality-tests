@@ -4,9 +4,10 @@ import { AUTH_STATE_PATH } from './global-setup';
 
 const runAuth = process.env.RUN_AUTH_E2E === '1';
 const runLogin = process.env.RUN_LOGIN_E2E === '1';
+const runRoles = process.env.RUN_ROLE_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
-if (!baseURL && (process.env.RUN_REMOTE_SMOKE === '1' || runAuth || runLogin)) {
+if (!baseURL && (process.env.RUN_REMOTE_SMOKE === '1' || runAuth || runLogin || runRoles)) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
 }
 
@@ -20,7 +21,7 @@ export default defineConfig({
   timeout: 40_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
-  globalSetup: runAuth ? './global-setup.ts' : undefined,
+  globalSetup: runAuth || runRoles ? './global-setup.ts' : undefined,
   use: {
     baseURL,
     trace: 'off',
@@ -46,6 +47,25 @@ export default defineConfig({
               ...devices['Desktop Chrome'],
               storageState: AUTH_STATE_PATH,
             },
+          },
+        ]
+      : []),
+    ...(runRoles
+      ? [
+          {
+            name: 'admin-role-chromium',
+            testMatch: '**/*.role.spec.ts',
+            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-admin.json' },
+          },
+          {
+            name: 'company-role-chromium',
+            testMatch: '**/*.role.spec.ts',
+            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-company.json' },
+          },
+          {
+            name: 'research-role-chromium',
+            testMatch: '**/*.role.spec.ts',
+            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-research.json' },
           },
         ]
       : []),

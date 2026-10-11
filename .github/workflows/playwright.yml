@@ -12,6 +12,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_roles:
+        description: Verify dedicated admin, company and scientist/research_admin accounts
+        required: true
+        type: boolean
+        default: false
       run_login:
         description: Run real Zitadel credential/PKCE login with dedicated test credentials
         required: true
@@ -50,6 +55,15 @@ jobs:
           E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
           E2E_FOREIGN_RESOURCE_PATH: ${{ vars.E2E_FOREIGN_RESOURCE_PATH }}
         run: pnpm exec playwright test --project=authenticated-chromium
+      - name: Privileged role access and negative cross-role boundaries
+        if: ${{ inputs.run_roles }}
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_ROLE_E2E: '1'
+          E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+          E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+          E2E_RESEARCH_STORAGE_STATE_BASE64: ${{ secrets.E2E_RESEARCH_STORAGE_STATE_BASE64 }}
+        run: pnpm exec playwright test --project=admin-role-chromium --project=company-role-chromium --project=research-role-chromium
       - name: Real Zitadel PKCE browser login
         if: ${{ inputs.run_login }}
         env:
