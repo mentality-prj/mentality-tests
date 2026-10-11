@@ -16,7 +16,8 @@ test('expired session refresh remains valid during concurrent tab navigation', a
   }
   expect(typeof tokens.expiresAt).toBe('number');
   tokens.expiresAt = Math.floor(Date.now() / 1000) - 10;
-  await context.addCookies([{ ...cookie, value: JSON.stringify(tokens) }]);
+  // Keep the original percent-encoded cookie wire format expected by Next.js.
+  await context.addCookies([{ ...cookie, value: encodeURIComponent(JSON.stringify(tokens)) }]);
 
   const secondTab = await context.newPage();
   const navigations = await Promise.all([
