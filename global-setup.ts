@@ -40,6 +40,18 @@ export async function prepareAuthState(): Promise<void> {
       ],
     );
   }
+  if (process.env.RUN_LIFECYCLE_E2E === '1') {
+    storageEntries.push([
+      'E2E_LIFECYCLE_STORAGE_STATE_BASE64',
+      join(process.cwd(), 'playwright/.auth/zitadel-lifecycle.json'),
+    ]);
+  }
+  if (process.env.RUN_MOOD_MUTATION_E2E === '1') {
+    storageEntries.push([
+      'E2E_MUTATION_STORAGE_STATE_BASE64',
+      join(process.cwd(), 'playwright/.auth/zitadel-mutation.json'),
+    ]);
+  }
   for (const [envKey, destination] of storageEntries) {
     const encoded = process.env[envKey];
     if (!encoded) throw new Error(envKey + ' is required for selected E2E project');
