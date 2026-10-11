@@ -6,25 +6,29 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  static-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'pnpm'
+          node-version: 22
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
-      - name: Install Playwright Browsers
-        run: pnpx playwright install --with-deps
-      - name: Lint
-        run: pnpx eslint .
-      - name: Check formatting
-        run: pnpx prettier --check .
-      - name: Run Playwright tests
-        run: pnpx playwright test
+        run: pnpm install --frozen-lockfile
+      - name: ESLint
+        run: pnpm lint
+      - name: Prettier
+        run: pnpm prettier
+      - name: TypeScript
+        run: pnpm typecheck
+      - name: Playwright test discovery (no live production traffic)
+        run: pnpm exec playwright test --list

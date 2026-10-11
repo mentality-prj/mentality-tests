@@ -1,27 +1,65 @@
-name: Playwright Tests
+name: Zitadel / BFF Remote E2E
+
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Exact preview URL containing mentality-web PR #437
+        required: true
+        type: string
+      run_auth:
+        description: Run against a dedicated authenticated low-privilege test session
+        required: true
+        type: boolean
+        default: false
+      run_login:
+        description: Run real Zitadel credential/PKCE login with dedicated test credentials
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
 jobs:
-  test:
-    timeout-minutes: 60
+  browser-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: e2e
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install dependencies
-      run: npm install -g pnpm && pnpm install
-    - name: Install Playwright Browsers
-      run: pnpm exec playwright install --with-deps
-    - name: Run Playwright tests
-      run: pnpm exec playwright test
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Public security smoke
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_REMOTE_SMOKE: '1'
+        run: pnpm exec playwright test --project=public-chromium
+      - name: Authenticated user session, RBAC, refresh/logout and BFF
+        if: ${{ inputs.run_auth }}
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_AUTH_E2E: '1'
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_FOREIGN_RESOURCE_PATH: ${{ vars.E2E_FOREIGN_RESOURCE_PATH }}
+        run: pnpm exec playwright test --project=authenticated-chromium
+      - name: Real Zitadel PKCE browser login
+        if: ${{ inputs.run_login }}
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_LOGIN_E2E: '1'
+          E2E_ZITADEL_USERNAME: ${{ secrets.E2E_ZITADEL_USERNAME }}
+          E2E_ZITADEL_PASSWORD: ${{ secrets.E2E_ZITADEL_PASSWORD }}
+          E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+          E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+          E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+        run: pnpm exec playwright test --project=zitadel-login-chromium
