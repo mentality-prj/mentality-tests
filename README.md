@@ -7,6 +7,8 @@ Playwright end-to-end tests for the [dzvin.co](https://dzvin.co) Next.js / Zitad
 - **Public security smoke:** Anonymous redirects, BFF authorization, CSRF, JWT response isolation and invalid OIDC callback.
 - **Authenticated browser:** HttpOnly cookies, validated session, page reload, BFF, admin denial, refresh/logout and optional cross-tenant checks.
 - **Privileged roles:** Dedicated admin, company and research identities validate authorized UI and cross-role rejection.
+- **Expired-token lifecycle:** A dedicated session forces token expiry and tests two concurrent tabs, without altering production accounts.
+- **Disposable mood mutation:** Opt-in real write/read against an isolated test tenant, with explicit post-run data cleanup.
 - **Real Zitadel login:** Authorization-code PKCE S256 round-trip with an isolated Zitadel test account.
 
 PR CI performs static validation and Playwright test discovery. It does **not** run authenticated checks against production.
@@ -53,3 +55,9 @@ E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=zitadel
 Use **Zitadel / BFF Remote E2E** → **Run workflow**. Supply the preview URL and optionally enable authenticated/session, privileged-role or real-login scenarios. Store sensitive values in the protected `e2e` environment. No production personal accounts, Google passwords, Playwright traces, screenshots or raw authenticated artifacts are required.
 
 The release gate in [mentality-web #439](https://github.com/mentality-prj/mentality-web/issues/439) requires executing the real browser tests against a configured preview. Static checks alone are not a production authorization PASS.
+
+### Lifecycle and write test isolation
+
+For real expiry/concurrency tests, set `RUN_LIFECYCLE_E2E=1` and `E2E_LIFECYCLE_STORAGE_STATE_BASE64` to a **fresh independent Zitadel test account**. The test modifies its HttpOnly cookie expiry and navigates two tabs simultaneously. A rotating refresh token can invalidate the stored state; generate a fresh state for each run. A concurrency failure is a **release defect**, not a test flake to skip.
+
+For real mood writes, set `RUN_MOOD_MUTATION_E2E=1`, `E2E_MUTATION_STORAGE_STATE_BASE64` and `E2E_DISPOSABLE_TENANT_CONFIRMED=1`. The test writes a new mood record and reads it back. **NestJS currently has no mood-record DELETE endpoint**, so it cannot clean up the record automatically. Use only a disposable test tenant, and reset that tenant's data through its approved test teardown after the run. Never run this mode against personal or production patient data.
