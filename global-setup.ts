@@ -26,9 +26,18 @@ export async function prepareAuthState(): Promise<void> {
   }
   if (process.env.RUN_ROLE_E2E === '1') {
     storageEntries.push(
-      ['E2E_ADMIN_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/zitadel-admin.json')],
-      ['E2E_COMPANY_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/zitadel-company.json')],
-      ['E2E_RESEARCH_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/zitadel-research.json')],
+      [
+        'E2E_ADMIN_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/zitadel-admin.json'),
+      ],
+      [
+        'E2E_COMPANY_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/zitadel-company.json'),
+      ],
+      [
+        'E2E_RESEARCH_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/zitadel-research.json'),
+      ],
     );
   }
   for (const [envKey, destination] of storageEntries) {

@@ -54,18 +54,27 @@ export default defineConfig({
       ? [
           {
             name: 'admin-role-chromium',
-            testMatch: '**/*.role.spec.ts',
-            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-admin.json' },
+            testMatch: '**/admin-access.role.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: 'playwright/.auth/zitadel-admin.json',
+            },
           },
           {
             name: 'company-role-chromium',
-            testMatch: '**/*.role.spec.ts',
-            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-company.json' },
+            testMatch: '**/company-access.role.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: 'playwright/.auth/zitadel-company.json',
+            },
           },
           {
             name: 'research-role-chromium',
-            testMatch: '**/*.role.spec.ts',
-            use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/zitadel-research.json' },
+            testMatch: '**/research-access.role.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: 'playwright/.auth/zitadel-research.json',
+            },
           },
         ]
       : []),
