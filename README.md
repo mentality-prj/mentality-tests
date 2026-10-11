@@ -61,7 +61,7 @@ Pull requests run lint, formatting, typecheck, test discovery. They **do not** p
 these checks are live authenticated E2E. The remote Playwright workflow is started manually
 with a target URL. Auth/login jobs are opt-in, use GitHub secrets and cannot run on forks.
 
-Test state is written to gitignored \`playwright/.auth/\`, with restricted permissions;
+Test state is written to gitignored `playwright/.auth/`, with restricted permissions;
 browser traces, videos and screenshots are disabled for all auth tests. Do not upload
 authenticated Playwright reports, request dumps or storage state.
 
