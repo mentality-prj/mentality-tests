@@ -11,3 +11,6 @@ storageState.json
 .env
 .env.local
 .env.*.local
+
+# Real Zitadel Playwright session credentials
+/playwright/.auth/

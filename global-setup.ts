@@ -51,3 +51,5 @@ export async function prepareAuthState(_config: FullConfig): Promise<void> {
   writeFileSync(AUTH_STATE_PATH, JSON.stringify(state), { mode: 0o600 });
   // Never print the state, cookies or bearer credentials.
 }
+
+export default prepareAuthState;

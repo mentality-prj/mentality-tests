@@ -69,4 +69,39 @@ test.describe('Zitadel authenticated session / BFF', () => {
     });
     expect(res.status()).toBe(403);
   });
+  test('refresh rotates server cookie without browser JWTs, then logout clears it', async ({
+    request,
+  }) => {
+    const origin = new URL(process.env.E2E_BASE_URL!).origin;
+    const before = await request.get('/api/auth/token');
+    expect(before.status()).toBe(200);
+    const metadata = await before.json();
+    expect(metadata.hasRefreshToken).toBe(true);
+
+    const refreshed = await request.post('/api/auth/exchange', {
+      headers: { origin },
+      data: { grantType: 'refresh_token' },
+    });
+    expect(refreshed.status()).toBe(200);
+    expect(refreshed.headers()['cache-control']).toContain('no-store');
+    const newMetadata = await refreshed.json();
+    assertNoSecrets(newMetadata);
+    expect(newMetadata.hasRefreshToken).toBe(true);
+    expect(refreshed.headers()['set-cookie']).toMatch(/HttpOnly/i);
+
+    const logout = await request.post('/api/auth/logout', {
+      headers: { origin },
+      maxRedirects: 0,
+      data: {},
+    });
+    expect(logout.status()).toBe(303);
+    const location = new URL(logout.headers().location);
+    expect(location.protocol).toBe('https:');
+    expect(location.pathname).toBe('/oidc/v1/end_session');
+    expect(logout.headers()['set-cookie']).toContain('auth-tokens=');
+
+    const after = await request.get('/api/auth/session');
+    expect(after.status()).toBe(401);
+  });
+
 });

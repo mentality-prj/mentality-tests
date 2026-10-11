@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
-import { AUTH_STATE_PATH, prepareAuthState } from './global-setup';
+import { AUTH_STATE_PATH } from './global-setup';
 
 const runAuth = process.env.RUN_AUTH_E2E === '1';
 const runLogin = process.env.RUN_LOGIN_E2E === '1';
@@ -20,7 +20,7 @@ export default defineConfig({
   timeout: 40_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
-  globalSetup: runAuth ? prepareAuthState : undefined,
+  globalSetup: runAuth ? './global-setup.ts' : undefined,
   use: {
     baseURL,
     trace: 'off',
