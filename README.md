@@ -1,91 +1,55 @@
 # mentality-tests
 
-Цей репозиторій містить автоматизовані end-to-end тести для проєкту [Mentality](https://dzvin.co), написані з використанням Playwright та TypeScript.
+Playwright end-to-end tests for the [dzvin.co](https://dzvin.co) Next.js / Zitadel / NestJS integration. These tests target the authentication changes in [mentality-web PR #437](https://github.com/mentality-prj/mentality-web/pull/437).
 
-## Призначення
+## Test modes
 
-Тести призначені для перевірки функціональності вебзастосунку Mentality, забезпечення стабільності та якості продукту.
+- **Public security smoke:** Anonymous redirects, BFF authorization, CSRF, JWT response isolation and invalid OIDC callback.
+- **Authenticated browser:** HttpOnly cookies, validated session, page reload, BFF, admin denial, refresh/logout and optional cross-tenant checks.
+- **Privileged roles:** Dedicated admin, company and research identities validate authorized UI and cross-role rejection.
+- **Real Zitadel login:** Authorization-code PKCE S256 round-trip with an isolated Zitadel test account.
 
-## Як запускати тести
+PR CI performs static validation and Playwright test discovery. It does **not** run authenticated checks against production.
 
-1. Встановіть залежності:
-   ```sh
-   pnpm install
-   ```
-2. Запустіть тести:
-   ```sh
-   pnpm test
-   ```
+## Local setup
 
-## Як писати нові тести
+Requires Node.js 22 and pnpm 10 (use the version pinned in `package.json`).
 
-- Додавайте нові файли у папку `tests/`.
-- Використовуйте Playwright API та TypeScript для написання тестів.
-- Дивіться приклади у `tests/example.spec.ts`.
-
-## Додатково
-
-- Для запуску тестів у різних браузерах використовуйте відповідні параметри Playwright.
-- Для генерації репортів використовуйте команду:
-  ```sh
-  pnpm test -- --reporter=html
-  ```
-
----
-
-_Проєкт підтримується командою Mentality (dzvin.co)._
-
-## Корисні Playwright команди
-
-```
-pnpm exec playwright test
-   Runs the end-to-end tests.
-
-pnpm exec playwright test --ui
-   Starts the interactive UI mode.
-
-pnpm exec playwright test --project=chromium
-   Runs the tests only on Desktop Chrome.
-
-pnpm exec playwright test example
-   Runs the tests in a specific file.
-
-pnpm exec playwright test --debug
-   Runs the tests in debug mode.
-
-pnpm exec playwright codegen
-   Auto generate tests with Codegen.
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm lint
+pnpm prettier
+pnpm typecheck
+pnpm exec playwright test --list
 ```
 
-Ми радимо почати з:
+Run anonymous smoke against the **deployed preview of PR #437**:
 
-pnpm exec playwright test
-
-та ознайомитись з файлами:
-
-- `tests/example.spec.ts` — приклад end-to-end тесту
-- `playwright.config.ts` — конфігурація Playwright Test
-
-Детальніше: https://playwright.dev/docs/intro
-
-## Якість коду: лінтери, форматування, перевірка типів
-
-У цьому проєкті налаштовано ESLint (з підтримкою TypeScript і Playwright), Prettier та перевірку типів TypeScript.
-
-### Основні команди
-
-```
-pnpm run lint
-   Перевірка коду ESLint
-
-pnpm run format
-   Форматування коду Prettier
-
-pnpm run format:check
-   Перевірка форматування Prettier
-
-pnpm run typecheck
-   Перевірка типів TypeScript (tsc --noEmit)
+```bash
+E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=public-chromium
 ```
 
-> Рекомендовано запускати lint, format:check та typecheck у CI або перед комітом, щоб уникати помилок у тестах.
+Run a dedicated low-privilege authenticated account:
+
+```bash
+RUN_AUTH_E2E=1 E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=authenticated-chromium
+```
+
+Set `E2E_AUTH_STORAGE_STATE_BASE64` to the base64-encoded Playwright storageState for that preview and test user. The local state is written to the gitignored `playwright/.auth/` directory. Never commit or print it.
+
+For cross-tenant isolation, set `E2E_FOREIGN_RESOURCE_PATH` to a known GET-only BFF endpoint for a resource in another test tenant. Without it, that single case explicitly skips and tenant isolation is **not certified**.
+
+For privileged-role coverage, set `RUN_ROLE_E2E=1` with `E2E_ADMIN_STORAGE_STATE_BASE64`, `E2E_COMPANY_STORAGE_STATE_BASE64`, and `E2E_RESEARCH_STORAGE_STATE_BASE64`. Each account must belong to the preview's test tenant and have the named role.
+
+For the real login round-trip, set `RUN_LOGIN_E2E=1` and provide `E2E_ZITADEL_USERNAME`, `E2E_ZITADEL_PASSWORD`, `E2E_ZITADEL_USERNAME_SELECTOR`, `E2E_ZITADEL_PASSWORD_SELECTOR`, and `E2E_ZITADEL_SUBMIT_SELECTOR`. Then run:
+
+```bash
+E2E_BASE_URL=https://preview.example pnpm exec playwright test --project=zitadel-login-chromium
+```
+
+## GitHub Actions
+
+Use **Zitadel / BFF Remote E2E** → **Run workflow**. Supply the preview URL and optionally enable authenticated/session, privileged-role or real-login scenarios. Store sensitive values in the protected `e2e` environment. No production personal accounts, Google passwords, Playwright traces, screenshots or raw authenticated artifacts are required.
+
+The release gate in [mentality-web #439](https://github.com/mentality-prj/mentality-web/issues/439) requires executing the real browser tests against a configured preview. Static checks alone are not a production authorization PASS.
