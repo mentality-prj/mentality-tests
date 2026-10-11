@@ -9,7 +9,15 @@ const runLifecycle = process.env.RUN_LIFECYCLE_E2E === '1';
 const runMoodMutation = process.env.RUN_MOOD_MUTATION_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
-if (!baseURL && (process.env.RUN_REMOTE_SMOKE === '1' || runAuth || runLogin || runRoles || runLifecycle || runMoodMutation)) {
+if (
+  !baseURL &&
+  (process.env.RUN_REMOTE_SMOKE === '1' ||
+    runAuth ||
+    runLogin ||
+    runRoles ||
+    runLifecycle ||
+    runMoodMutation)
+) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
 }
 
@@ -23,7 +31,8 @@ export default defineConfig({
   timeout: 40_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
-  globalSetup: runAuth || runRoles || runLifecycle || runMoodMutation ? './global-setup.ts' : undefined,
+  globalSetup:
+    runAuth || runRoles || runLifecycle || runMoodMutation ? './global-setup.ts' : undefined,
   use: {
     baseURL,
     trace: 'off',
