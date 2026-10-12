@@ -46,6 +46,9 @@ export function assertReleasePreflight(env) {
   if (!app || env.E2E_ALLOWED_MUTATION_ORIGIN !== app.origin) {
     failures.push('E2E_ALLOWED_MUTATION_ORIGIN must exactly match the preview origin');
   }
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(env.E2E_QDIP_ORGANIZATION_ID ?? '')) {
+    failures.push('E2E_QDIP_ORGANIZATION_ID must reference a disposable QDIP organization');
+  }
   const foreign = env.E2E_FOREIGN_RESOURCE_PATH;
   if (
     !foreign ||

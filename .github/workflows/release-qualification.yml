@@ -42,6 +42,9 @@ jobs:
       RUN_LIFECYCLE_E2E: '1'
       RUN_MOOD_MUTATION_E2E: '1'
       RUN_LOGIN_E2E: '1'
+      RUN_QDIP_ADMIN_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+      E2E_QDIP_ORGANIZATION_ID: ${{ vars.E2E_QDIP_ORGANIZATION_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -68,6 +71,7 @@ jobs:
             --project=refresh-concurrency-chromium \
             --project=disposable-mood-mutation-chromium \
             --project=zitadel-login-chromium \
+            --project=qdip-admin-chromium \
             > "$RUNNER_TEMP/dzvin-playwright-results.json"
           execution_status=$?
           set -e

@@ -6,6 +6,7 @@ import { assertReleaseResults, REQUIRED_PROJECTS } from './release-results.mjs';
 
 function env() {
   return {
+    E2E_QDIP_ORGANIZATION_ID: 'disposable-qdip-org',
     E2E_BASE_URL: 'https://isolated-preview.vercel.app',
     E2E_ALLOWED_MUTATION_ORIGIN: 'https://isolated-preview.vercel.app',
     E2E_DISPOSABLE_TENANT_CONFIRMED: '1',
@@ -28,12 +29,35 @@ function env() {
   };
 }
 
+const MANDATORY = [
+  'real Zitadel authorization-code + PKCE login round-trip',
+  'expired session refresh remains valid during concurrent tab navigation',
+  'authenticated same-origin mood write persists under a disposable tenant',
+  'cross-tenant resource ID is inaccessible',
+  'backend-verified administrator accesses the admin UI',
+  'company identity accesses company, but not global admin',
+  'scientist / research_admin accesses research, not global admin',
+  'QDIP platform administrator can read sanitized organization data',
+  'QDIP administrative API rejects ordinary and company users',
+  'QDIP organization keys never disclose secrets',
+  'QDIP write endpoint rejects unauthorized callers',
+  'authenticated mobile pages render without horizontal overflow',
+  'protected SSR survives locale navigation and hard reload',
+];
+
 function report() {
   return {
     suites: [
       {
-        specs: REQUIRED_PROJECTS.map((projectName) => ({
-          tests: [{ projectName, status: 'expected', results: [{ status: 'passed' }] }],
+        specs: MANDATORY.map((title, index) => ({
+          title,
+          tests: [
+            {
+              projectName: REQUIRED_PROJECTS[index % REQUIRED_PROJECTS.length],
+              status: 'expected',
+              results: [{ status: 'passed' }],
+            },
+          ],
         })),
       },
     ],
@@ -58,9 +82,11 @@ test('rejects a missing test identity or login selector', () => {
   assert.throws(() => assertReleasePreflight({ ...env(), E2E_ZITADEL_PASSWORD: '' }));
 });
 test('requires all eight Playwright projects', () => {
-  assert.equal(assertReleaseResults(report()), 8);
+  assert.equal(assertReleaseResults(report()), MANDATORY.length);
   const r = report();
-  r.suites[0].specs.pop();
+  r.suites[0].specs = r.suites[0].specs.filter(
+    (spec) => spec.tests[0].projectName !== 'qdip-admin-chromium',
+  );
   assert.throws(() => assertReleaseResults(r), /Required E2E project missing/);
 });
 test('rejects skipped, failing, and empty test results', () => {
@@ -72,4 +98,16 @@ test('rejects skipped, failing, and empty test results', () => {
   const r = report();
   r.suites[0].specs[0].tests[0].results = [{ status: 'failed' }];
   assert.throws(() => assertReleaseResults(r));
+});
+
+test('requires every mandatory test case and rejects flaky retry success', () => {
+  const missing = report();
+  missing.suites[0].specs = missing.suites[0].specs.filter((spec) => spec.title !== MANDATORY[0]);
+  assert.throws(() => assertReleaseResults(missing), /Mandatory E2E case missing/);
+  const flaky = report();
+  flaky.suites[0].specs[0].tests[0].results.unshift({ status: 'failed' });
+  assert.throws(() => assertReleaseResults(flaky), /Non-passing or skipped/);
+});
+test('requires an explicit disposable QDIP organization', () => {
+  assert.throws(() => assertReleasePreflight({ ...env(), E2E_QDIP_ORGANIZATION_ID: '' }));
 });

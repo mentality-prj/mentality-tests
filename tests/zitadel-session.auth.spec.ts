@@ -45,7 +45,7 @@ test.describe('Zitadel authenticated session / BFF', () => {
 
   test('normal user cannot navigate to administrator UI', async ({ request }) => {
     const session = await (await request.get('/api/auth/session')).json();
-    test.skip(session.role === 'admin', 'This scenario requires a non-admin test user');
+    expect(session.role).not.toBe('admin');
     const response = await request.get('/en/admin', { maxRedirects: 0 });
     expect([302, 303, 307, 308]).toContain(response.status());
     const url = new URL(response.headers().location, process.env.E2E_BASE_URL);
@@ -54,10 +54,7 @@ test.describe('Zitadel authenticated session / BFF', () => {
 
   test('cross-tenant resource ID is inaccessible', async ({ request }) => {
     const path = process.env.E2E_FOREIGN_RESOURCE_PATH;
-    test.skip(
-      !path,
-      'Set E2E_FOREIGN_RESOURCE_PATH from a different test tenant to enforce isolation',
-    );
+    expect(path, 'Foreign-tenant fixture is required').toBeTruthy();
     expect(path).toMatch(/^\/api\/backend\/[A-Za-z0-9/_?&=.%~-]+$/);
     const res = await request.get(path!);
     expect([403, 404]).toContain(res.status());
