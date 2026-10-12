@@ -28,5 +28,7 @@ jobs:
         run: pnpm prettier
       - name: TypeScript
         run: pnpm typecheck
+      - name: Fail-closed release gate policy unit tests
+        run: node --test scripts/release-gates.test.mjs
       - name: Playwright test discovery (no live production traffic)
         run: pnpm exec playwright test --list

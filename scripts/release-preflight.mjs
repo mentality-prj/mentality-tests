@@ -1,0 +1,75 @@
+import { pathToFileURL } from 'node:url';
+
+const REQUIRED = [
+  'E2E_AUTH_STORAGE_STATE_BASE64',
+  'E2E_ADMIN_STORAGE_STATE_BASE64',
+  'E2E_COMPANY_STORAGE_STATE_BASE64',
+  'E2E_RESEARCH_STORAGE_STATE_BASE64',
+  'E2E_LIFECYCLE_STORAGE_STATE_BASE64',
+  'E2E_MUTATION_STORAGE_STATE_BASE64',
+  'E2E_ZITADEL_USERNAME',
+  'E2E_ZITADEL_PASSWORD',
+  'E2E_ZITADEL_USERNAME_SELECTOR',
+  'E2E_ZITADEL_PASSWORD_SELECTOR',
+  'E2E_ZITADEL_SUBMIT_SELECTOR',
+];
+
+/** Fail closed before any remote navigation or state-changing test. */
+export function assertReleasePreflight(env) {
+  const failures = [];
+  let app;
+  try {
+    app = new URL(env.E2E_BASE_URL);
+    if (
+      app.protocol !== 'https:' ||
+      app.username ||
+      app.password ||
+      app.search ||
+      app.hash ||
+      app.pathname !== '/'
+    ) {
+      failures.push('E2E_BASE_URL must be an HTTPS origin without a path or credentials');
+    }
+    if (
+      app.hostname === 'dzvin.co' ||
+      app.hostname.endsWith('.dzvin.co') ||
+      app.hostname === 'mentality-web.vercel.app'
+    ) {
+      failures.push('E2E_BASE_URL cannot target a production hostname');
+    }
+  } catch {
+    failures.push('E2E_BASE_URL must be a valid HTTPS origin');
+  }
+  if (env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1') {
+    failures.push('E2E_DISPOSABLE_TENANT_CONFIRMED must be 1');
+  }
+  if (!app || env.E2E_ALLOWED_MUTATION_ORIGIN !== app.origin) {
+    failures.push('E2E_ALLOWED_MUTATION_ORIGIN must exactly match the preview origin');
+  }
+  const foreign = env.E2E_FOREIGN_RESOURCE_PATH;
+  if (
+    !foreign ||
+    !/^\/api\/backend\/[A-Za-z0-9/_?&=.%~-]+$/.test(foreign) ||
+    foreign.includes('..')
+  ) {
+    failures.push('E2E_FOREIGN_RESOURCE_PATH must be a known foreign-tenant GET resource');
+  }
+  for (const name of REQUIRED) {
+    if (typeof env[name] !== 'string' || !env[name].trim()) {
+      failures.push(name + ' is required');
+    }
+  }
+  if (failures.length) {
+    throw new Error('Release E2E preflight refused: ' + failures.join('; '));
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    assertReleasePreflight(process.env);
+    console.log('Release preflight PASS: isolation and credential gates satisfied');
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+}
