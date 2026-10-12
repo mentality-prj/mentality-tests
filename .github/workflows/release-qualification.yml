@@ -52,7 +52,13 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Verify nonproduction preview URL before using the network
+      - name: Resolve exact-head Vercel preview if no e2e URL is configured
+        env:
+          GH_TOKEN: ${{ github.token }}
+          E2E_WEB_PR_NUMBER: ${{ vars.E2E_WEB_PR_NUMBER }}
+        run: node scripts/resolve-preview.mjs
+
+      - name: Verify nonproduction preview URL before browser navigation
         run: node scripts/public-preflight.mjs
 
       - name: Install dependencies

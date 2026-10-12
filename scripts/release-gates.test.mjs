@@ -66,6 +66,47 @@ function report() {
   };
 }
 
+test('only a Vercel bot preview matching the exact successful PR deployment is trusted', async () => {
+  const { selectVerifiedVercelPreview, resolvePreview } = await import('./resolve-preview.mjs');
+  const sha = 'a'.repeat(40);
+  const target = 'https://vercel.com/taras-gezs-projects/mentality-web/valid';
+  const preview = 'https://mentality-web-git-fix-role-abc-taras-gezs-projects.vercel.app';
+  const pull = { head: { sha } };
+  const status = {
+    state: 'success',
+    statuses: [{ context: 'Vercel', state: 'success', target_url: target }],
+  };
+  const comments = [
+    { user: { login: 'vercel[bot]' }, body: '[Ready](' + target + ') [Preview](' + preview + ')' },
+  ];
+  const expected = { url: preview, sha };
+  assert.deepEqual(selectVerifiedVercelPreview({ pull, status, comments }), expected);
+  assert.throws(
+    () =>
+      selectVerifiedVercelPreview({
+        pull,
+        status,
+        comments: [{ user: { login: 'attacker' }, body: comments[0].body }],
+      }),
+    /No ready Vercel bot preview/,
+  );
+  assert.throws(
+    () =>
+      selectVerifiedVercelPreview({
+        pull,
+        status: { ...status, statuses: [] },
+        comments,
+      }),
+    /no successful Vercel/,
+  );
+  const requester = async (url) => {
+    if (url.endsWith('/pulls/444')) return pull;
+    if (url.includes('/commits/')) return status;
+    return comments;
+  };
+  assert.deepEqual(await resolvePreview({ GH_TOKEN: 'test-token' }, requester), expected);
+});
+
 test('public smoke requires an explicit HTTPS nonproduction preview origin', () => {
   assert.equal(
     assertPublicPreviewOrigin('https://isolated-preview.vercel.app'),
