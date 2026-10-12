@@ -96,6 +96,7 @@ test.describe('Zitadel authenticated session / BFF', () => {
     const location = new URL(logout.headers().location);
     expect(location.protocol).toBe('https:');
     expect(location.pathname).toBe('/oidc/v1/end_session');
+    expect(location.searchParams.get('post_logout_redirect_uri')).toBe(origin);
     expect(logout.headers()['set-cookie']).toContain('auth-tokens=');
 
     const after = await request.get('/api/auth/session');

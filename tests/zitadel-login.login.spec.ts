@@ -30,6 +30,7 @@ test('real Zitadel authorization-code + PKCE login round-trip', async ({ page, c
     .toBeGreaterThan(0);
   const authorize = authorizeRequests[0].searchParams;
   expect(authorize.get('response_type')).toBe('code');
+  expect(authorize.get('redirect_uri')).toBe(origin + '/callback');
   expect(authorize.get('code_challenge_method')).toBe('S256');
   expect(authorize.get('code_challenge')).toBeTruthy();
   expect(authorize.get('state')).toBeTruthy();
