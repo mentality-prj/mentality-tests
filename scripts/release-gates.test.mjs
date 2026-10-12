@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { assertPublicPreviewOrigin } from './public-preflight.mjs';
 import { assertReleasePreflight } from './release-preflight.mjs';
 import { assertReleaseResults, REQUIRED_PROJECTS } from './release-results.mjs';
 
@@ -65,6 +66,22 @@ function report() {
   };
 }
 
+test('public smoke requires an explicit HTTPS nonproduction preview origin', () => {
+  assert.equal(assertPublicPreviewOrigin('https://isolated-preview.vercel.app'), 'https://isolated-preview.vercel.app');
+  assert.throws(() => assertPublicPreviewOrigin(''), /E2E_BASE_URL is missing/);
+  assert.throws(() => assertPublicPreviewOrigin('https://dzvin.co'), /production/);
+  assert.throws(() => assertPublicPreviewOrigin('https://www.dzvin.co'), /production/);
+  assert.throws(() => assertPublicPreviewOrigin('https://mentality-web-git-production-acct.vercel.app'), /production/);
+  assert.throws(() => assertPublicPreviewOrigin('https://isolated-preview.vercel.app/path'), /HTTPS origin/);
+  assert.throws(() => assertPublicPreviewOrigin('http://isolated-preview.vercel.app'), /HTTPS origin/);
+});
+test('privileged gate requires the same nonproduction preview boundary as public smoke', () => {
+  assert.throws(() => assertReleasePreflight({ ...env(), E2E_BASE_URL: '' }), /E2E_BASE_URL is missing/);
+  assert.throws(() => assertReleasePreflight({
+    ...env(),
+    E2E_BASE_URL: 'https://mentality-web-git-production-acct.vercel.app',
+  }), /production/);
+});
 test('accepts a dedicated HTTPS preview with complete test environment', () => {
   assert.doesNotThrow(() => assertReleasePreflight(env()));
 });

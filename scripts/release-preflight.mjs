@@ -1,5 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
+import { assertPublicPreviewOrigin } from './public-preflight.mjs';
+
 const REQUIRED = [
   'E2E_AUTH_STORAGE_STATE_BASE64',
   'E2E_ADMIN_STORAGE_STATE_BASE64',
@@ -19,26 +21,9 @@ export function assertReleasePreflight(env) {
   const failures = [];
   let app;
   try {
-    app = new URL(env.E2E_BASE_URL);
-    if (
-      app.protocol !== 'https:' ||
-      app.username ||
-      app.password ||
-      app.search ||
-      app.hash ||
-      app.pathname !== '/'
-    ) {
-      failures.push('E2E_BASE_URL must be an HTTPS origin without a path or credentials');
-    }
-    if (
-      app.hostname === 'dzvin.co' ||
-      app.hostname.endsWith('.dzvin.co') ||
-      app.hostname === 'mentality-web.vercel.app'
-    ) {
-      failures.push('E2E_BASE_URL cannot target a production hostname');
-    }
-  } catch {
-    failures.push('E2E_BASE_URL must be a valid HTTPS origin');
+    app = new URL(assertPublicPreviewOrigin(env.E2E_BASE_URL));
+  } catch (error) {
+    failures.push(error.message);
   }
   if (env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1') {
     failures.push('E2E_DISPOSABLE_TENANT_CONFIRMED must be 1');
