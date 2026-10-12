@@ -79,7 +79,9 @@ export async function resolvePreview(env, requester = githubJson) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const { url, sha } = await resolvePreview(process.env);
-    if (!process.env.GITHUB_ENV) throw new Error('GITHUB_ENV is required for workflow URL propagation');
+    if (!process.env.GITHUB_ENV) {
+      throw new Error('GITHUB_ENV is required for workflow URL propagation');
+    }
     appendFileSync(process.env.GITHUB_ENV, 'E2E_BASE_URL=' + url + '\n');
     console.log(
       'Preview resolution PASS: ' +

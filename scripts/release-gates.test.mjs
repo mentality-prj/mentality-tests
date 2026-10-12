@@ -72,20 +72,33 @@ test('only a Vercel bot preview matching the exact successful PR deployment is t
   const target = 'https://vercel.com/taras-gezs-projects/mentality-web/valid';
   const preview = 'https://mentality-web-git-fix-role-abc-taras-gezs-projects.vercel.app';
   const pull = { head: { sha } };
-  const status = { state: 'success', statuses: [{ context: 'Vercel', state: 'success', target_url: target }] };
-  const comments = [{ user: { login: 'vercel[bot]' }, body: '[Ready](' + target + ') [Preview](' + preview + ')' }];
+  const status = {
+    state: 'success',
+    statuses: [{ context: 'Vercel', state: 'success', target_url: target }],
+  };
+  const comments = [
+    { user: { login: 'vercel[bot]' }, body: '[Ready](' + target + ') [Preview](' + preview + ')' },
+  ];
   const expected = { url: preview, sha };
   assert.deepEqual(selectVerifiedVercelPreview({ pull, status, comments }), expected);
-  assert.throws(() => selectVerifiedVercelPreview({
-    pull,
-    status,
-    comments: [{ user: { login: 'attacker' }, body: comments[0].body }],
-  }), /No ready Vercel bot preview/);
-  assert.throws(() => selectVerifiedVercelPreview({
-    pull,
-    status: { ...status, statuses: [] },
-    comments,
-  }), /no successful Vercel/);
+  assert.throws(
+    () =>
+      selectVerifiedVercelPreview({
+        pull,
+        status,
+        comments: [{ user: { login: 'attacker' }, body: comments[0].body }],
+      }),
+    /No ready Vercel bot preview/,
+  );
+  assert.throws(
+    () =>
+      selectVerifiedVercelPreview({
+        pull,
+        status: { ...status, statuses: [] },
+        comments,
+      }),
+    /no successful Vercel/,
+  );
   const requester = async (url) => {
     if (url.endsWith('/pulls/444')) return pull;
     if (url.includes('/commits/')) return status;
