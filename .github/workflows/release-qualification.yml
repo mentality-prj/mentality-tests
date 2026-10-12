@@ -1,11 +1,26 @@
 name: Dzvin Production Release Qualification
 
+# Static CI only discovers Playwright tests. This workflow EXECUTES Chromium
+# against a dedicated, nonproduction preview when test code changes and nightly.
+# Never run privileged suites on untrusted PR code or production dzvin.co.
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-qualification.yml'
+      - 'playwright.config.ts'
+      - 'global-setup.ts'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  schedule:
+    - cron: '15 6 * * *'
   workflow_dispatch:
     inputs:
       base_url:
-        description: HTTPS preview origin configured for dedicated Zitadel redirect and disposable tenant
-        required: true
+        description: Optional HTTPS test preview; defaults to E2E_BASE_URL in the e2e environment
+        required: false
         type: string
 
 permissions:
@@ -21,29 +36,13 @@ jobs:
     timeout-minutes: 40
     environment: e2e
     env:
-      E2E_BASE_URL: ${{ inputs.base_url }}
+      # Do not confuse a build on 'main' with a build of web PR #444.
+      # The e2e environment must point at an approved preview backed by
+      # a matching NestJS test deployment. An optional dispatch overrides it.
+      E2E_BASE_URL: ${{ inputs.base_url || vars.E2E_BASE_URL }}
       E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
       E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
       E2E_FOREIGN_RESOURCE_PATH: ${{ vars.E2E_FOREIGN_RESOURCE_PATH }}
-      E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
-      E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
-      E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
-      E2E_RESEARCH_STORAGE_STATE_BASE64: ${{ secrets.E2E_RESEARCH_STORAGE_STATE_BASE64 }}
-      E2E_LIFECYCLE_STORAGE_STATE_BASE64: ${{ secrets.E2E_LIFECYCLE_STORAGE_STATE_BASE64 }}
-      E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
-      E2E_ZITADEL_USERNAME: ${{ secrets.E2E_ZITADEL_USERNAME }}
-      E2E_ZITADEL_PASSWORD: ${{ secrets.E2E_ZITADEL_PASSWORD }}
-      E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
-      E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
-      E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
-      RUN_REMOTE_SMOKE: '1'
-      RUN_AUTH_E2E: '1'
-      RUN_ROLE_E2E: '1'
-      RUN_LIFECYCLE_E2E: '1'
-      RUN_MOOD_MUTATION_E2E: '1'
-      RUN_LOGIN_E2E: '1'
-      RUN_QDIP_ADMIN_E2E: '1'
-      RUN_RELEASE_QUALIFICATION: '1'
       E2E_QDIP_ORGANIZATION_ID: ${{ vars.E2E_QDIP_ORGANIZATION_ID }}
     steps:
       - uses: actions/checkout@v4
@@ -52,14 +51,60 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Verify nonproduction preview URL before using the network
+        run: node scripts/public-preflight.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Fail-closed release preflight
-        run: node scripts/release-preflight.mjs
+
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
-      - name: Execute complete real browser acceptance suite
+
+      # Public smoke works without any Zitadel credentials. It diagnoses
+      # preview routing and API boundary failures even when auth is not ready.
+      - name: Execute real anonymous Chromium E2E
+        env:
+          RUN_REMOTE_SMOKE: '1'
+        run: pnpm exec playwright test --project=public-chromium --reporter=list
+
+      - name: Fail-closed privileged release preflight
+        env:
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+          E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+          E2E_RESEARCH_STORAGE_STATE_BASE64: ${{ secrets.E2E_RESEARCH_STORAGE_STATE_BASE64 }}
+          E2E_LIFECYCLE_STORAGE_STATE_BASE64: ${{ secrets.E2E_LIFECYCLE_STORAGE_STATE_BASE64 }}
+          E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
+          E2E_ZITADEL_USERNAME: ${{ secrets.E2E_ZITADEL_USERNAME }}
+          E2E_ZITADEL_PASSWORD: ${{ secrets.E2E_ZITADEL_PASSWORD }}
+          E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+          E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+          E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+        run: node scripts/release-preflight.mjs
+
+      - name: Execute complete authenticated acceptance suite
         shell: bash
+        env:
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+          E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+          E2E_RESEARCH_STORAGE_STATE_BASE64: ${{ secrets.E2E_RESEARCH_STORAGE_STATE_BASE64 }}
+          E2E_LIFECYCLE_STORAGE_STATE_BASE64: ${{ secrets.E2E_LIFECYCLE_STORAGE_STATE_BASE64 }}
+          E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
+          E2E_ZITADEL_USERNAME: ${{ secrets.E2E_ZITADEL_USERNAME }}
+          E2E_ZITADEL_PASSWORD: ${{ secrets.E2E_ZITADEL_PASSWORD }}
+          E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+          E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+          E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+          RUN_REMOTE_SMOKE: '1'
+          RUN_AUTH_E2E: '1'
+          RUN_ROLE_E2E: '1'
+          RUN_LIFECYCLE_E2E: '1'
+          RUN_MOOD_MUTATION_E2E: '1'
+          RUN_LOGIN_E2E: '1'
+          RUN_QDIP_ADMIN_E2E: '1'
+          RUN_RELEASE_QUALIFICATION: '1'
         run: |
           set +e
           pnpm exec playwright test --reporter=json \
