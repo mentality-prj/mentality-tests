@@ -1,0 +1,75 @@
+name: Dzvin Production Release Qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: HTTPS preview origin configured for dedicated Zitadel redirect and disposable tenant
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-production-release-qualification
+  cancel-in-progress: false
+
+jobs:
+  release-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: e2e
+    env:
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
+      E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+      E2E_FOREIGN_RESOURCE_PATH: ${{ vars.E2E_FOREIGN_RESOURCE_PATH }}
+      E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+      E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+      E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+      E2E_RESEARCH_STORAGE_STATE_BASE64: ${{ secrets.E2E_RESEARCH_STORAGE_STATE_BASE64 }}
+      E2E_LIFECYCLE_STORAGE_STATE_BASE64: ${{ secrets.E2E_LIFECYCLE_STORAGE_STATE_BASE64 }}
+      E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
+      E2E_ZITADEL_USERNAME: ${{ secrets.E2E_ZITADEL_USERNAME }}
+      E2E_ZITADEL_PASSWORD: ${{ secrets.E2E_ZITADEL_PASSWORD }}
+      E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+      E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+      E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+      RUN_REMOTE_SMOKE: '1'
+      RUN_AUTH_E2E: '1'
+      RUN_ROLE_E2E: '1'
+      RUN_LIFECYCLE_E2E: '1'
+      RUN_MOOD_MUTATION_E2E: '1'
+      RUN_LOGIN_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Fail-closed release preflight
+        run: node scripts/release-preflight.mjs
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Execute complete real browser acceptance suite
+        shell: bash
+        run: |
+          set +e
+          pnpm exec playwright test --reporter=json \
+            --project=public-chromium \
+            --project=authenticated-chromium \
+            --project=admin-role-chromium \
+            --project=company-role-chromium \
+            --project=research-role-chromium \
+            --project=refresh-concurrency-chromium \
+            --project=disposable-mood-mutation-chromium \
+            --project=zitadel-login-chromium \
+            > "$RUNNER_TEMP/dzvin-playwright-results.json"
+          execution_status=$?
+          set -e
+          node scripts/release-results.mjs "$RUNNER_TEMP/dzvin-playwright-results.json"
+          exit "$execution_status"
