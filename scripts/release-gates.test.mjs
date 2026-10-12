@@ -67,20 +67,39 @@ function report() {
 }
 
 test('public smoke requires an explicit HTTPS nonproduction preview origin', () => {
-  assert.equal(assertPublicPreviewOrigin('https://isolated-preview.vercel.app'), 'https://isolated-preview.vercel.app');
+  assert.equal(
+    assertPublicPreviewOrigin('https://isolated-preview.vercel.app'),
+    'https://isolated-preview.vercel.app',
+  );
   assert.throws(() => assertPublicPreviewOrigin(''), /E2E_BASE_URL is missing/);
   assert.throws(() => assertPublicPreviewOrigin('https://dzvin.co'), /production/);
   assert.throws(() => assertPublicPreviewOrigin('https://www.dzvin.co'), /production/);
-  assert.throws(() => assertPublicPreviewOrigin('https://mentality-web-git-production-acct.vercel.app'), /production/);
-  assert.throws(() => assertPublicPreviewOrigin('https://isolated-preview.vercel.app/path'), /HTTPS origin/);
-  assert.throws(() => assertPublicPreviewOrigin('http://isolated-preview.vercel.app'), /HTTPS origin/);
+  assert.throws(
+    () => assertPublicPreviewOrigin('https://mentality-web-git-production-acct.vercel.app'),
+    /production/,
+  );
+  assert.throws(
+    () => assertPublicPreviewOrigin('https://isolated-preview.vercel.app/path'),
+    /HTTPS origin/,
+  );
+  assert.throws(
+    () => assertPublicPreviewOrigin('http://isolated-preview.vercel.app'),
+    /HTTPS origin/,
+  );
 });
 test('privileged gate requires the same nonproduction preview boundary as public smoke', () => {
-  assert.throws(() => assertReleasePreflight({ ...env(), E2E_BASE_URL: '' }), /E2E_BASE_URL is missing/);
-  assert.throws(() => assertReleasePreflight({
-    ...env(),
-    E2E_BASE_URL: 'https://mentality-web-git-production-acct.vercel.app',
-  }), /production/);
+  assert.throws(
+    () => assertReleasePreflight({ ...env(), E2E_BASE_URL: '' }),
+    /E2E_BASE_URL is missing/,
+  );
+  assert.throws(
+    () =>
+      assertReleasePreflight({
+        ...env(),
+        E2E_BASE_URL: 'https://mentality-web-git-production-acct.vercel.app',
+      }),
+    /production/,
+  );
 });
 test('accepts a dedicated HTTPS preview with complete test environment', () => {
   assert.doesNotThrow(() => assertReleasePreflight(env()));
@@ -98,7 +117,7 @@ test('requires foreign-tenant path and explicit disposable test tenant', () => {
 test('rejects a missing test identity or login selector', () => {
   assert.throws(() => assertReleasePreflight({ ...env(), E2E_ZITADEL_PASSWORD: '' }));
 });
-test('requires all eight Playwright projects', () => {
+test('requires all nine Playwright projects', () => {
   assert.equal(assertReleaseResults(report()), MANDATORY.length);
   const r = report();
   r.suites[0].specs = r.suites[0].specs.filter(
