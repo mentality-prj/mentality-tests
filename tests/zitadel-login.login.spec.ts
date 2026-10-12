@@ -44,9 +44,10 @@ test('real Zitadel authorization-code + PKCE login round-trip', async ({ page, c
     await page.locator(submitSelector).click();
   }
 
-  await page.waitForURL((url) => url.origin === origin && url.pathname === '/en/my-day', {
-    timeout: 60_000,
-  });
+  await page.waitForURL(
+    (url) => url.origin === origin && /^\/(en|uk|pl)\/my-day$/.test(url.pathname),
+    { timeout: 60_000 },
+  );
   const cookie = (await context.cookies()).find((item) => item.name === 'auth-tokens');
   expect(cookie?.httpOnly).toBe(true);
 

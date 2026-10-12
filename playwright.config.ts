@@ -7,6 +7,7 @@ const runLogin = process.env.RUN_LOGIN_E2E === '1';
 const runRoles = process.env.RUN_ROLE_E2E === '1';
 const runLifecycle = process.env.RUN_LIFECYCLE_E2E === '1';
 const runMoodMutation = process.env.RUN_MOOD_MUTATION_E2E === '1';
+const runQdipAdmin = process.env.RUN_QDIP_ADMIN_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
 if (
@@ -16,7 +17,8 @@ if (
     runLogin ||
     runRoles ||
     runLifecycle ||
-    runMoodMutation)
+    runMoodMutation ||
+    runQdipAdmin)
 ) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
 }
@@ -26,13 +28,15 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env.RUN_RELEASE_QUALIFICATION === '1' ? 0 : process.env.CI ? 1 : 0,
   workers: 1,
   timeout: 40_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
   globalSetup:
-    runAuth || runRoles || runLifecycle || runMoodMutation ? './global-setup.ts' : undefined,
+    runAuth || runRoles || runLifecycle || runMoodMutation || runQdipAdmin
+      ? './global-setup.ts'
+      : undefined,
   use: {
     baseURL,
     trace: 'off',
@@ -109,6 +113,18 @@ export default defineConfig({
             use: {
               ...devices['Desktop Chrome'],
               storageState: 'playwright/.auth/zitadel-mutation.json',
+            },
+          },
+        ]
+      : []),
+    ...(runQdipAdmin
+      ? [
+          {
+            name: 'qdip-admin-chromium',
+            testMatch: '**/*.qdip.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: 'playwright/.auth/zitadel-admin.json',
             },
           },
         ]
