@@ -93,16 +93,14 @@ test.describe('Gate 2 / real B2B company isolation', () => {
     });
   });
 
-  test('manager sees only granted subtree; employee cannot read analytics', async ({
-    baseURL,
-  }) => {
+  test('manager sees only granted subtree; employee cannot read analytics', async ({ baseURL }) => {
     const companyA = fixture('E2E_B2B_COMPANY_A_ID');
     const allowed = fixture('E2E_B2B_GROUP_A_ID');
     const outside = fixture('E2E_B2B_GROUP_A_OUTSIDE_SCOPE_ID');
     await asActor(baseURL!, 'aManager', async (api) => {
       const groups = await api.get(companyUrl(companyA, '/groups'));
       expect(groups.status()).toBe(200);
-      const ids = (await groups.json() as Array<{ id?: string; _id?: string }>).map(idOf);
+      const ids = ((await groups.json()) as Array<{ id?: string; _id?: string }>).map(idOf);
       expect(ids).toContain(allowed);
       expect(ids).not.toContain(outside);
       const analytics = await api.get(companyUrl(companyA, '/analytics/mood'));
@@ -158,8 +156,8 @@ test.describe('Gate 2 / real B2B company isolation', () => {
       const second = await api.get(companyUrl(b, '/invites'));
       expect(first.status()).toBe(200);
       expect(second.status()).toBe(200);
-      const firstInvites = await first.json() as Array<{ id: string; companyId: string }>;
-      const secondInvites = await second.json() as Array<{ id: string; companyId: string }>;
+      const firstInvites = (await first.json()) as Array<{ id: string; companyId: string }>;
+      const secondInvites = (await second.json()) as Array<{ id: string; companyId: string }>;
       expect(firstInvites.map((item) => item.id)).toContain(inviteA);
       expect(secondInvites.map((item) => item.id)).toContain(inviteB);
       expect(firstInvites.every((item) => item.companyId === a)).toBe(true);
@@ -175,7 +173,7 @@ test.describe('Gate 2 / real B2B company isolation', () => {
     await asActor(baseURL!, 'multi', async (api) => {
       const mine = await api.get('/api/backend/companies/mine');
       expect(mine.status()).toBe(200);
-      const companyIds = (await mine.json() as Array<{ id: string }>).map((item) => item.id);
+      const companyIds = ((await mine.json()) as Array<{ id: string }>).map((item) => item.id);
       expect(companyIds).toContain(companyA);
       expect(companyIds).toContain(companyB);
       for (const companyId of [companyA, companyB]) {
@@ -229,7 +227,9 @@ test.describe('Gate 2 / real B2B company isolation', () => {
   }) => {
     const existing = JSON.parse(readFileSync(states.aAdmin, 'utf8'));
     const host = new URL(baseURL!).hostname;
-    const authCookie = existing.cookies.find((item: { name: string }) => item.name === 'auth-tokens');
+    const authCookie = existing.cookies.find(
+      (item: { name: string }) => item.name === 'auth-tokens',
+    );
     expect(authCookie).toBeDefined();
     existing.cookies = existing.cookies.filter(
       (item: { name: string }) => item.name !== 'dzvin-active-company',
@@ -250,7 +250,7 @@ test.describe('Gate 2 / real B2B company isolation', () => {
       await forbiddenRead(api, companyUrl(fixture('E2E_B2B_COMPANY_B_ID'), '/groups'));
       const mine = await api.get('/api/backend/companies/mine');
       expect(mine.status()).toBe(200);
-      expect((await mine.json() as Array<{ id: string }>).map((item) => item.id)).toContain(
+      expect(((await mine.json()) as Array<{ id: string }>).map((item) => item.id)).toContain(
         fixture('E2E_B2B_COMPANY_A_ID'),
       );
     } finally {
