@@ -98,7 +98,9 @@ Configure GitHub Actions protected environment `e2e`:
   `E2E_B2B_GROUP_A_ID` (in manager's granted subtree),
   `E2E_B2B_GROUP_A_OUTSIDE_SCOPE_ID` (same tenant, outside that subtree),
   `E2E_B2B_GROUP_B_ID`,
-  `E2E_B2B_MULTI_INVITE_A_ID`, `E2E_B2B_MULTI_INVITE_B_ID`.
+  `E2E_B2B_MULTI_INVITE_A_ID`, `E2E_B2B_MULTI_INVITE_B_ID`,
+  `E2E_B2B_USER_A_ID`, `E2E_B2B_USER_B_ID`,
+  `E2E_B2B_SALARY_GRADE_B_ID`.
 
 All IDs must be valid **distinct 24-character Mongo ObjectIds**. The
 multi-company identity must belong to companies A and B with manager rights
@@ -115,6 +117,7 @@ the preview actually contains that web SHA and points to backend #132 SHA;
 the frontend URL check alone **cannot prove the deployed backend version**.
 Run only against a disposable NestJS/Zitadel test tenant. The suite checks
 tenant denial across companies/groups/employees/invites/analytics/scopes/salaries,
+foreign-company POST/PATCH/DELETE attempts that must be denied before any mutation,
 manager subtree, no-role/platform-admin denial, invite escalation, explicit
 company switching, stale cookies and CSRF. Every case must pass with zero
 skips/retries. Preserve the run URL, web/backend deployed SHAs, fixture
