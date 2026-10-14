@@ -50,9 +50,7 @@ test.describe('Gate 2 / disposable company role mutations', () => {
       expect(await promotedSession.json()).toEqual(
         expect.objectContaining({ id: employeeId, companyId, companyRole: 'superuser' }),
       );
-      const allowed = await employee.get(
-        '/api/backend/companies/' + companyId + '/access-scopes',
-      );
+      const allowed = await employee.get('/api/backend/companies/' + companyId + '/access-scopes');
       expect(allowed.status()).toBe(200);
     } finally {
       // Never intentionally leave a disposable E2E user with elevated rights.
@@ -68,9 +66,7 @@ test.describe('Gate 2 / disposable company role mutations', () => {
         expect(await reverted.json()).toEqual(
           expect.objectContaining({ id: employeeId, companyId, companyRole: 'employee' }),
         );
-        const denied = await employee.get(
-          '/api/backend/companies/' + companyId + '/access-scopes',
-        );
+        const denied = await employee.get('/api/backend/companies/' + companyId + '/access-scopes');
         expect(denied.status()).toBe(403);
       }
       await admin.dispose();
