@@ -15,6 +15,7 @@ function fixtureEnv() {
     'E2E_B2B_USER_A_ID',
     'E2E_B2B_USER_B_ID',
     'E2E_B2B_SALARY_GRADE_B_ID',
+    'E2E_B2B_B_ADMIN_USER_ID',
   ];
   const states = [
     'E2E_ADMIN_STORAGE_STATE_BASE64',
@@ -28,6 +29,7 @@ function fixtureEnv() {
   return {
     E2E_BASE_URL: 'https://isolated-preview.example',
     E2E_DISPOSABLE_TENANT_CONFIRMED: '1',
+    E2E_B2B_ROLE_MUTATIONS_CONFIRMED: '1',
     ...Object.fromEntries(ids.map((id, index) => [id, (index + 1).toString(16).padStart(24, '0')])),
     ...Object.fromEntries(states.map((state) => [state, 'test-only-not-a-credential'])),
   };
@@ -41,6 +43,9 @@ test('B2B E2E rejects production origin and non-disposable environment', () => {
   assert.throws(() => assertB2BPreflight({ ...fixtureEnv(), E2E_BASE_URL: 'https://dzvin.co' }));
   assert.throws(() =>
     assertB2BPreflight({ ...fixtureEnv(), E2E_DISPOSABLE_TENANT_CONFIRMED: '0' }),
+  );
+  assert.throws(() =>
+    assertB2BPreflight({ ...fixtureEnv(), E2E_B2B_ROLE_MUTATIONS_CONFIRMED: '0' }),
   );
 });
 
