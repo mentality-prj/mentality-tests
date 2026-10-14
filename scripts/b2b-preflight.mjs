@@ -23,6 +23,7 @@ const IDS = [
   'E2E_B2B_USER_A_ID',
   'E2E_B2B_USER_B_ID',
   'E2E_B2B_SALARY_GRADE_B_ID',
+  'E2E_B2B_B_ADMIN_USER_ID',
 ];
 
 export function assertB2BPreflight(env) {
@@ -35,6 +36,9 @@ export function assertB2BPreflight(env) {
 
   if (env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1') {
     failures.push('E2E_DISPOSABLE_TENANT_CONFIRMED must be 1');
+  }
+  if (env.E2E_B2B_ROLE_MUTATIONS_CONFIRMED !== '1') {
+    failures.push('E2E_B2B_ROLE_MUTATIONS_CONFIRMED must be 1');
   }
 
   const used = new Set();
