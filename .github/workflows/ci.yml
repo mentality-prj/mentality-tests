@@ -29,6 +29,11 @@ jobs:
       - name: TypeScript
         run: pnpm typecheck
       - name: Fail-closed release gate policy unit tests
-        run: node --test scripts/release-gates.test.mjs
+        run: node --test scripts/release-gates.test.mjs scripts/b2b-preflight.test.mjs
       - name: Playwright test discovery (no live production traffic)
         run: pnpm exec playwright test --list
+      - name: Discover isolated B2B negative E2E without contacting preview
+        env:
+          RUN_B2B_E2E: '1'
+          E2E_BASE_URL: https://isolated-preview.example
+        run: pnpm exec playwright test --project=b2b-isolation-chromium --list

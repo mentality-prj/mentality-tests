@@ -8,6 +8,7 @@ const runRoles = process.env.RUN_ROLE_E2E === '1';
 const runLifecycle = process.env.RUN_LIFECYCLE_E2E === '1';
 const runMoodMutation = process.env.RUN_MOOD_MUTATION_E2E === '1';
 const runQdipAdmin = process.env.RUN_QDIP_ADMIN_E2E === '1';
+const runB2B = process.env.RUN_B2B_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
 if (
@@ -18,6 +19,7 @@ if (
     runRoles ||
     runLifecycle ||
     runMoodMutation ||
+    runB2B ||
     runQdipAdmin)
 ) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
@@ -34,7 +36,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
   globalSetup:
-    runAuth || runRoles || runLifecycle || runMoodMutation || runQdipAdmin
+    runAuth || runRoles || runLifecycle || runMoodMutation || runQdipAdmin || runB2B
       ? './global-setup.ts'
       : undefined,
   use: {
@@ -125,6 +127,18 @@ export default defineConfig({
             use: {
               ...devices['Desktop Chrome'],
               storageState: 'playwright/.auth/zitadel-admin.json',
+            },
+          },
+        ]
+      : []),
+    ...(runB2B
+      ? [
+          {
+            name: 'b2b-isolation-chromium',
+            testMatch: '**/*.b2b.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: { cookies: [], origins: [] },
             },
           },
         ]

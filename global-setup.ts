@@ -40,6 +40,38 @@ export async function prepareAuthState(): Promise<void> {
       ],
     );
   }
+  if (process.env.RUN_B2B_E2E === '1') {
+    storageEntries.push(
+      [
+        'E2E_B2B_A_ADMIN_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-a-admin.json'),
+      ],
+      [
+        'E2E_B2B_B_ADMIN_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-b-admin.json'),
+      ],
+      [
+        'E2E_B2B_A_MANAGER_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-a-manager.json'),
+      ],
+      [
+        'E2E_B2B_A_EMPLOYEE_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-a-employee.json'),
+      ],
+      [
+        'E2E_B2B_MULTI_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-multi.json'),
+      ],
+      [
+        'E2E_B2B_NO_COMPANY_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/b2b-no-company.json'),
+      ],
+      [
+        'E2E_ADMIN_STORAGE_STATE_BASE64',
+        join(process.cwd(), 'playwright/.auth/zitadel-admin.json'),
+      ],
+    );
+  }
   if (process.env.RUN_LIFECYCLE_E2E === '1') {
     storageEntries.push([
       'E2E_LIFECYCLE_STORAGE_STATE_BASE64',

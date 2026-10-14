@@ -1,0 +1,60 @@
+name: Dzvin B2B Gate 2 E2E
+
+# Never run authenticated tenant tests automatically on pull_request code.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Exact HTTPS nonproduction preview of web #444 with backend #132
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-b2b-gate2
+  cancel-in-progress: false
+
+jobs:
+  b2b-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: e2e
+    env:
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      RUN_B2B_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+      E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+      E2E_B2B_COMPANY_A_ID: ${{ vars.E2E_B2B_COMPANY_A_ID }}
+      E2E_B2B_COMPANY_B_ID: ${{ vars.E2E_B2B_COMPANY_B_ID }}
+      E2E_B2B_GROUP_A_ID: ${{ vars.E2E_B2B_GROUP_A_ID }}
+      E2E_B2B_GROUP_A_OUTSIDE_SCOPE_ID: ${{ vars.E2E_B2B_GROUP_A_OUTSIDE_SCOPE_ID }}
+      E2E_B2B_GROUP_B_ID: ${{ vars.E2E_B2B_GROUP_B_ID }}
+      E2E_B2B_MULTI_INVITE_A_ID: ${{ vars.E2E_B2B_MULTI_INVITE_A_ID }}
+      E2E_B2B_MULTI_INVITE_B_ID: ${{ vars.E2E_B2B_MULTI_INVITE_B_ID }}
+      E2E_B2B_USER_A_ID: ${{ vars.E2E_B2B_USER_A_ID }}
+      E2E_B2B_USER_B_ID: ${{ vars.E2E_B2B_USER_B_ID }}
+      E2E_B2B_SALARY_GRADE_B_ID: ${{ vars.E2E_B2B_SALARY_GRADE_B_ID }}
+      E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+      E2E_B2B_A_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_A_ADMIN_STORAGE_STATE_BASE64 }}
+      E2E_B2B_B_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_B_ADMIN_STORAGE_STATE_BASE64 }}
+      E2E_B2B_A_MANAGER_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_A_MANAGER_STORAGE_STATE_BASE64 }}
+      E2E_B2B_A_EMPLOYEE_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_A_EMPLOYEE_STORAGE_STATE_BASE64 }}
+      E2E_B2B_MULTI_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_MULTI_STORAGE_STATE_BASE64 }}
+      E2E_B2B_NO_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2B_NO_COMPANY_STORAGE_STATE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify preview, fixture and identity preconditions
+        run: node scripts/b2b-preflight.mjs
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run signed-in cross-company isolation without retries or skips
+        run: pnpm exec playwright test --project=b2b-isolation-chromium --reporter=list
