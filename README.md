@@ -124,6 +124,8 @@ skips/retries. Preserve the run URL, web/backend deployed SHAs, fixture
 manifest and teardown evidence in the Gate 2 issue. Do not merge/enable B2B
 based solely on static CI.
 
+<!-- prettier-ignore-start -->
+
 ### Canonical role transition qualification
 
 The isolated B2B gate now has **14 mandatory real browser/API cases**. Its
@@ -148,3 +150,5 @@ environment. If the write attempt or cleanup fails, reset the dedicated
 Mongo test tenant and issue fresh Zitadel browser states before retrying.
 The suite never authorizes changing live employee privileges or using
 an unverified backend deployment.
+
+<!-- prettier-ignore-end -->
