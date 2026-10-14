@@ -308,4 +308,65 @@ test.describe('Gate 2 / real B2B company isolation', () => {
       await manager.close();
     }
   });
+
+  test('foreign company mutations are rejected before any data can change', async ({
+    baseURL,
+  }) => {
+    const companyB = fixture('E2E_B2B_COMPANY_B_ID');
+    const groupB = fixture('E2E_B2B_GROUP_B_ID');
+    const origin = new URL(baseURL!).origin;
+    await asActor(baseURL!, 'aAdmin', async (api) => {
+      const denied = await Promise.all([
+        api.post(companyUrl(companyB, '/groups'), {
+          headers: { origin },
+          data: { name: 'MUST-NOT-CREATE' },
+        }),
+        api.post(companyUrl(companyB, '/salary-grades'), {
+          headers: { origin },
+          data: { name: 'MUST-NOT-CREATE' },
+        }),
+        api.post(companyUrl(companyB, '/access-scopes'), {
+          headers: { origin },
+          data: { groupId: groupB, userId: fixture('E2E_B2B_USER_B_ID'), permission: 'VIEW_ANALYTICS' },
+        }),
+        api.patch(companyUrl(companyB, '/employees/' + fixture('E2E_B2B_USER_B_ID') + '/role'), {
+          headers: { origin },
+          data: { companyRole: 'superuser' },
+        }),
+        api.delete(companyUrl(companyB, '/salary-grades/' + fixture('E2E_B2B_SALARY_GRADE_B_ID')), {
+          headers: { origin },
+        }),
+      ]);
+      for (const response of denied) {
+        expect([403, 404], response.url()).toContain(response.status());
+        expect(response.headers()['cache-control']).toContain('no-store');
+      }
+    });
+  });
+
+  test('manager cannot change company administrator roles or access scopes', async ({
+    baseURL,
+  }) => {
+    const companyA = fixture('E2E_B2B_COMPANY_A_ID');
+    const origin = new URL(baseURL!).origin;
+    await asActor(baseURL!, 'aManager', async (api) => {
+      const denied = await Promise.all([
+        api.patch(companyUrl(companyA, '/employees/' + fixture('E2E_B2B_USER_A_ID') + '/role'), {
+          headers: { origin },
+          data: { companyRole: 'superuser' },
+        }),
+        api.post(companyUrl(companyA, '/access-scopes'), {
+          headers: { origin },
+          data: {
+            groupId: fixture('E2E_B2B_GROUP_A_OUTSIDE_SCOPE_ID'),
+            userId: fixture('E2E_B2B_USER_A_ID'),
+            permission: 'VIEW_ANALYTICS',
+          },
+        }),
+      ]);
+      for (const response of denied) {
+        expect([403, 404], response.url()).toContain(response.status());
+      }
+    });
+  });
 });
