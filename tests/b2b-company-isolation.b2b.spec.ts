@@ -309,9 +309,7 @@ test.describe('Gate 2 / real B2B company isolation', () => {
     }
   });
 
-  test('foreign company mutations are rejected before any data can change', async ({
-    baseURL,
-  }) => {
+  test('foreign company mutations are rejected before any data can change', async ({ baseURL }) => {
     const companyB = fixture('E2E_B2B_COMPANY_B_ID');
     const groupB = fixture('E2E_B2B_GROUP_B_ID');
     const origin = new URL(baseURL!).origin;
@@ -327,7 +325,11 @@ test.describe('Gate 2 / real B2B company isolation', () => {
         }),
         api.post(companyUrl(companyB, '/access-scopes'), {
           headers: { origin },
-          data: { groupId: groupB, userId: fixture('E2E_B2B_USER_B_ID'), permission: 'VIEW_ANALYTICS' },
+          data: {
+            groupId: groupB,
+            userId: fixture('E2E_B2B_USER_B_ID'),
+            permission: 'VIEW_ANALYTICS',
+          },
         }),
         api.patch(companyUrl(companyB, '/employees/' + fixture('E2E_B2B_USER_B_ID') + '/role'), {
           headers: { origin },
