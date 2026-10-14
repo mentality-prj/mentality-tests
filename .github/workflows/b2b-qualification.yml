@@ -59,4 +59,12 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run signed-in cross-company isolation without retries or skips
-        run: pnpm exec playwright test --project=b2b-isolation-chromium --reporter=list
+        shell: bash
+        run: |
+          set +e
+          pnpm exec playwright test --project=b2b-isolation-chromium --reporter=json \
+            > "$RUNNER_TEMP/dzvin-b2b-results.json"
+          test_status=$?
+          set -e
+          node scripts/b2b-results.mjs "$RUNNER_TEMP/dzvin-b2b-results.json"
+          exit "$test_status"
