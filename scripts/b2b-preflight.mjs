@@ -20,6 +20,9 @@ const IDS = [
   'E2E_B2B_GROUP_B_ID',
   'E2E_B2B_MULTI_INVITE_A_ID',
   'E2E_B2B_MULTI_INVITE_B_ID',
+  'E2E_B2B_USER_A_ID',
+  'E2E_B2B_USER_B_ID',
+  'E2E_B2B_SALARY_GRADE_B_ID',
 ];
 
 export function assertB2BPreflight(env) {
