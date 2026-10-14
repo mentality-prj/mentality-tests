@@ -100,7 +100,7 @@ Configure GitHub Actions protected environment `e2e`:
   `E2E_B2B_GROUP_B_ID`,
   `E2E_B2B_MULTI_INVITE_A_ID`, `E2E_B2B_MULTI_INVITE_B_ID`,
   `E2E_B2B_USER_A_ID`, `E2E_B2B_USER_B_ID`,
-  `E2E_B2B_SALARY_GRADE_B_ID`.
+  `E2E_B2B_SALARY_GRADE_B_ID`, `E2E_B2B_B_ADMIN_USER_ID`.
 
 All IDs must be valid **distinct 24-character Mongo ObjectIds**. The
 multi-company identity must belong to companies A and B with manager rights
@@ -123,3 +123,28 @@ company switching, stale cookies and CSRF. Every case must pass with zero
 skips/retries. Preserve the run URL, web/backend deployed SHAs, fixture
 manifest and teardown evidence in the Gate 2 issue. Do not merge/enable B2B
 based solely on static CI.
+
+### Canonical role transition qualification
+
+The isolated B2B gate now has **14 mandatory real browser/API cases**. Its
+separate results validator rejects skipped, retried, missing, duplicate or
+failing scenarios even if Playwright exits successfully.
+
+Set the protected environment variable
+`E2E_B2B_ROLE_MUTATIONS_CONFIRMED=1` **only after** preparing a disposable
+company A employee (`E2E_B2B_USER_A_ID` matches the actual
+`b2b-a-employee` authenticated user) whose role may be elevated temporarily,
+and a company B administrator (`E2E_B2B_B_ADMIN_USER_ID` matches the
+`b2b-b-admin` authenticated user) who is the **sole canonical administrator**
+and belongs to a company B group. The test promotes the disposable A employee
+to company administrator, verifies the *same user's* validated session and
+protected backend access, then restores the original employee role in
+`finally`; the test must fail if restoration fails. The separate company B
+case must receive HTTP 409 when trying to demote the last admin and must
+retain administrator privileges afterward.
+
+Do not set this variable for any permanent account or a production
+environment. If the write attempt or cleanup fails, reset the dedicated
+Mongo test tenant and issue fresh Zitadel browser states before retrying.
+The suite never authorizes changing live employee privileges or using
+an unverified backend deployment.
