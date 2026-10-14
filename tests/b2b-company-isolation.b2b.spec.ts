@@ -257,4 +257,55 @@ test.describe('Gate 2 / real B2B company isolation', () => {
       await api.dispose();
     }
   });
+
+  test('anonymous and forged company-header requests cannot bypass BFF authorization', async ({
+    baseURL,
+  }) => {
+    const companyB = fixture('E2E_B2B_COMPANY_B_ID');
+    const anon = await playwrightRequest.newContext({
+      baseURL,
+      storageState: { cookies: [], origins: [] },
+    });
+    try {
+      expect((await anon.get(companyUrl(companyB))).status()).toBe(401);
+      expect((await anon.get(companyUrl(companyB, '/invites'))).status()).toBe(401);
+    } finally {
+      await anon.dispose();
+    }
+    await asActor(baseURL!, 'aAdmin', async (api) => {
+      const spoofed = await api.get(companyUrl(companyB, '/groups'), {
+        headers: { 'x-company-id': companyB, 'x-company-role': 'superuser' },
+      });
+      expect([403, 404]).toContain(spoofed.status());
+    });
+  });
+
+  test('real browser company switch and direct URL role guards survive navigation', async ({
+    baseURL,
+    browser,
+  }) => {
+    const companyA = fixture('E2E_B2B_COMPANY_A_ID');
+    const multi = await browser.newContext({ baseURL, storageState: states.multi });
+    try {
+      const page = await multi.newPage();
+      await page.goto('/en/select-company');
+      await expect(page.getByRole('heading', { name: 'Select company' })).toBeVisible();
+      await page.locator('form button[name="companyId"][value="' + companyA + '"]').click();
+      await expect(page).toHaveURL(/\/en\/company\//);
+      const session = await page.request.get('/api/auth/session');
+      expect(session.status()).toBe(200);
+      expect((await session.json()).companyId).toBe(companyA);
+    } finally {
+      await multi.close();
+    }
+
+    const manager = await browser.newContext({ baseURL, storageState: states.aManager });
+    try {
+      const page = await manager.newPage();
+      await page.goto('/en/company/admin');
+      await expect(page).toHaveURL(/\/en\/company\/manager(?:\/|\?|$)/);
+    } finally {
+      await manager.close();
+    }
+  });
 });
