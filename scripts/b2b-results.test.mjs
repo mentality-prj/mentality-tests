@@ -5,16 +5,20 @@ import { assertB2BResults, REQUIRED_B2B_CASES } from './b2b-results.mjs';
 
 function report() {
   return {
-    suites: [{
-      specs: REQUIRED_B2B_CASES.map((title) => ({
-        title,
-        tests: [{
-          projectName: 'b2b-isolation-chromium',
-          status: 'expected',
-          results: [{ status: 'passed' }],
-        }],
-      })),
-    }],
+    suites: [
+      {
+        specs: REQUIRED_B2B_CASES.map((title) => ({
+          title,
+          tests: [
+            {
+              projectName: 'b2b-isolation-chromium',
+              status: 'expected',
+              results: [{ status: 'passed' }],
+            },
+          ],
+        })),
+      },
+    ],
     errors: [],
   };
 }
