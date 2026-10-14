@@ -68,6 +68,23 @@ test.describe('Gate 2 / disposable company role mutations', () => {
         );
         const denied = await employee.get('/api/backend/companies/' + companyId + '/access-scopes');
         expect(denied.status()).toBe(403);
+
+        // A demoted administrator's old GroupMembership.superuser must never
+        // bypass the canonical CompanyMembership.member restriction.
+        for (const role of ['manager', 'employee']) {
+          const forbiddenInvite = await employee.post(
+            '/api/backend/companies/' + companyId + '/invites',
+            {
+              headers: { origin },
+              data: {
+                inviteeEmail: 'must-not-invite-after-demotion@invalid.example',
+                groupId: requiredFixture('E2E_B2B_GROUP_A_ID'),
+                role,
+              },
+            },
+          );
+          expect(forbiddenInvite.status(), 'Demoted user must not invite ' + role).toBe(403);
+        }
       }
       await admin.dispose();
       await employee.dispose();
