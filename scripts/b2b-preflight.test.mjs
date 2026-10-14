@@ -12,6 +12,9 @@ function fixtureEnv() {
     'E2E_B2B_GROUP_B_ID',
     'E2E_B2B_MULTI_INVITE_A_ID',
     'E2E_B2B_MULTI_INVITE_B_ID',
+    'E2E_B2B_USER_A_ID',
+    'E2E_B2B_USER_B_ID',
+    'E2E_B2B_SALARY_GRADE_B_ID',
   ];
   const states = [
     'E2E_ADMIN_STORAGE_STATE_BASE64',
