@@ -45,9 +45,7 @@ test('B2B E2E refuses missing identities, malformed IDs and colliding tenants', 
   assert.throws(() =>
     assertB2BPreflight({ ...fixtureEnv(), E2E_B2B_MULTI_STORAGE_STATE_BASE64: '' }),
   );
-  assert.throws(() =>
-    assertB2BPreflight({ ...fixtureEnv(), E2E_B2B_GROUP_A_ID: 'not-object-id' }),
-  );
+  assert.throws(() => assertB2BPreflight({ ...fixtureEnv(), E2E_B2B_GROUP_A_ID: 'not-object-id' }));
   assert.throws(() =>
     assertB2BPreflight({
       ...fixtureEnv(),
