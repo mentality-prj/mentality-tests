@@ -1,0 +1,59 @@
+name: Dzvin QDIP Gate 3 Read-only E2E
+
+# Protected manual verification; never run privileged identity fixtures in PRs.
+# This does NOT enable mutations or qualify privileged writes in production.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-qdip-gate3-readonly
+  cancel-in-progress: false
+
+jobs:
+  qdip-gate3-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: e2e
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_GATE3_APPROVED_PREVIEW_ORIGIN }}
+      E2E_QDIP_ORGANIZATION_ID: ${{ vars.E2E_QDIP_ORGANIZATION_ID }}
+      E2E_QDIP_KEY_ID: ${{ vars.E2E_QDIP_KEY_ID }}
+      E2E_QDIP_AUDIT_DECISION_ID: ${{ vars.E2E_QDIP_AUDIT_DECISION_ID }}
+      E2E_GATE3_WEB_SHA: ${{ vars.E2E_GATE3_WEB_SHA }}
+      E2E_GATE3_BACKEND_SHA: ${{ vars.E2E_GATE3_BACKEND_SHA }}
+      E2E_GATE3_DISPOSABLE_FIXTURES_CONFIRMED: ${{ vars.E2E_GATE3_DISPOSABLE_FIXTURES_CONFIRMED }}
+      RUN_QDIP_ADMIN_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify dedicated Gate 3 preview, fixture IDs and pinned source references
+        env:
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+          E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+        run: node scripts/qdip-gate3-preflight.mjs
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Read-only Zitadel to NestJS to QDIP acceptance
+        env:
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_ADMIN_STORAGE_STATE_BASE64: ${{ secrets.E2E_ADMIN_STORAGE_STATE_BASE64 }}
+          E2E_COMPANY_STORAGE_STATE_BASE64: ${{ secrets.E2E_COMPANY_STORAGE_STATE_BASE64 }}
+        shell: bash
+        run: |
+          set +e
+          pnpm exec playwright test --project=qdip-admin-chromium --reporter=json > "$RUNNER_TEMP/qdip-gate3-results.json"
+          execution_status=$?
+          set -e
+          node scripts/qdip-gate3-results.mjs "$RUNNER_TEMP/qdip-gate3-results.json"
+          exit "$execution_status"
