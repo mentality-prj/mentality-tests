@@ -319,6 +319,10 @@ test.describe('Gate 2 / real B2B company isolation', () => {
           headers: { origin },
           data: { name: 'MUST-NOT-CREATE' },
         }),
+        api.patch(companyUrl(companyB, '/groups/' + groupB), {
+          headers: { origin },
+          data: { name: 'MUST-NOT-RENAME' },
+        }),
         api.post(companyUrl(companyB, '/salary-grades'), {
           headers: { origin },
           data: { name: 'MUST-NOT-CREATE' },
@@ -343,6 +347,29 @@ test.describe('Gate 2 / real B2B company isolation', () => {
         expect([403, 404], response.url()).toContain(response.status());
         expect(response.headers()['cache-control']).toContain('no-store');
       }
+
+      // A valid company administrator must not import a foreign parent into
+      // their group's closure tree. The rejected request changes no groups.
+      const ownGroupsUrl = companyUrl(fixture('E2E_B2B_COMPANY_A_ID'), '/groups');
+      const before = await api.get(ownGroupsUrl);
+      expect(before.status()).toBe(200);
+      const beforeIds = ((await before.json()) as Array<{ id?: string; _id?: string }>)
+        .map(idOf)
+        .sort();
+      const foreignParent = await api.post(ownGroupsUrl, {
+        headers: { origin },
+        data: {
+          name: 'MUST-NOT-ADD-FOREIGN-PARENT',
+          type: 'team',
+          parentGroupId: groupB,
+        },
+      });
+      expect([400, 403, 404]).toContain(foreignParent.status());
+      const after = await api.get(ownGroupsUrl);
+      expect(after.status()).toBe(200);
+      expect(
+        ((await after.json()) as Array<{ id?: string; _id?: string }>).map(idOf).sort(),
+      ).toEqual(beforeIds);
     });
   });
 
