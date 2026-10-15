@@ -21,12 +21,20 @@ function env() {
 
 function report() {
   return {
-    suites: [{
-      specs: REQUIRED_QDIP_GATE3_CASES.map((title) => ({
-        title,
-        tests: [{ projectName: 'qdip-admin-chromium', status: 'expected', results: [{ status: 'passed' }] }],
-      })),
-    }],
+    suites: [
+      {
+        specs: REQUIRED_QDIP_GATE3_CASES.map((title) => ({
+          title,
+          tests: [
+            {
+              projectName: 'qdip-admin-chromium',
+              status: 'expected',
+              results: [{ status: 'passed' }],
+            },
+          ],
+        })),
+      },
+    ],
     errors: [],
   };
 }
