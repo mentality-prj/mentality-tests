@@ -41,7 +41,9 @@ export function assertQdipGate3Results(report) {
   }
   visit(report.suites);
   for (const title of REQUIRED_QDIP_GATE3_CASES) {
-    if (seen.get(title) !== 1) errors.push('Required QDIP case not executed exactly once: ' + title);
+    if (seen.get(title) !== 1) {
+      errors.push('Required QDIP case not executed exactly once: ' + title);
+    }
   }
   if (Array.isArray(report.errors) && report.errors.length > 0) {
     errors.push('Playwright global errors');
