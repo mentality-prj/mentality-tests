@@ -152,3 +152,37 @@ The suite never authorizes changing live employee privileges or using
 an unverified backend deployment.
 
 <!-- prettier-ignore-end -->
+
+## Read-only Mood History Backend E2E
+
+Run the existing **Zitadel / BFF Remote E2E** workflow with `run_mood_history=true`. This project runs **real authenticated GET requests** from Playwright through the Next.js BFF to the deployed NestJS `/mood-record` endpoint. It does **not** use mocked backend responses and never creates or deletes records.
+
+### Protected `e2e` environment
+
+Reuse the existing `E2E_AUTH_STORAGE_STATE_BASE64` secret, `E2E_ALLOWED_MUTATION_ORIGIN` and `E2E_DISPOSABLE_TENANT_CONFIRMED=1` variables. Add one non-secret environment variable:
+
+- `E2E_MOOD_HISTORY_FIXTURE_TAG` — a unique tag beginning with `e2e-` (for example `e2e-history-contract`) present on every dedicated QA fixture record.
+
+The supplied `base_url` must exactly match the allowlisted origin and must reference a **nonproduction web app connected to the corresponding test NestJS/MongoDB backend**. The tests explicitly reject the production hostnames. The account in `E2E_AUTH_STORAGE_STATE_BASE64` must own the fixtures; using someone else's records or production data is prohibited.
+
+Pre-seed **at least six** tagged records for that one test account in an approved disposable tenant, with these properties:
+
+- Mood, stress, energy and focus must each include numeric levels **1, 3 and 5** across the fixtures. Those values distinguish noncontiguous multi-select from incorrect min/max range matching.
+- `createdAt` timestamps must be distinct, with records on **both UTC weekdays and UTC weekends** (the backend currently evaluates weekdays in UTC).
+- The fixture tag must not appear in another user's records. No concurrent fixture writers should run during validation. Keep the tagged fixture at or below 100 records.
+- If creation is performed through the existing mood mutation tool, note that **no DELETE endpoint exists**. Only write into the disposable environment and use its approved reset/teardown mechanism. The read-only history suite itself never mutates the tenant.
+
+The seven assertions cover anonymous 401, authenticated records and `X-Total-Count`, noncontiguous OR filtering for each metric, AND across multiple metrics and weekdays, repeated tags/weekdays, oldest/newest sorting before pagination, and 400 responses to invalid query values. They also verify `cache-control: no-store`. **Missing fixture data is a FAIL, not a misleading PASS or silent skip.**
+
+Run locally against the configured disposable preview (credentials are passed as environment variables, never checked into Git):
+
+```bash
+RUN_MOOD_HISTORY_E2E=1 \
+E2E_BASE_URL=https://your-nonproduction-preview.example \
+E2E_ALLOWED_MUTATION_ORIGIN=https://your-nonproduction-preview.example \
+E2E_DISPOSABLE_TENANT_CONFIRMED=1 \
+E2E_MOOD_HISTORY_FIXTURE_TAG=e2e-history-contract \
+pnpm exec playwright test --project=mood-history-api-chromium --reporter=list
+```
+
+For local runs also provide `E2E_AUTH_STORAGE_STATE_BASE64` securely. Ordinary PR CI only discovers these tests and performs static checks; it must **not** be reported as a successful live Backend E2E. The remote suite is deliberately manual/opt-in so new PRs do not trigger costly builds or writes.
