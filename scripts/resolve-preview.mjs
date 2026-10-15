@@ -49,9 +49,7 @@ export function selectMergedDevPull({ ref, pulls }) {
   if (!Array.isArray(pulls)) {
     throw new Error('Frontend merged pull request list is unavailable');
   }
-  const merged = pulls.find(
-    (pull) => pull.merged_at && pull.merge_commit_sha === devSha,
-  );
+  const merged = pulls.find((pull) => pull.merged_at && pull.merge_commit_sha === devSha);
   if (!merged || !Number.isInteger(merged.number)) {
     throw new Error('No merged frontend PR corresponds to the current dev head');
   }
@@ -120,7 +118,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(
       'Preview resolution PASS: ' +
         new URL(url).hostname +
-        (sha ? ' (verified frontend dev tree ' + sha.slice(0, 12) + ')' : ' (configured e2e origin)'),
+        (sha
+          ? ' (verified frontend dev tree ' + sha.slice(0, 12) + ')'
+          : ' (configured e2e origin)'),
     );
   } catch (error) {
     console.error(error.message);
