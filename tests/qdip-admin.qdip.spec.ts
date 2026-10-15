@@ -102,7 +102,9 @@ test('QDIP audit fixture suppresses raw feature values and rule evidence', async
   expect(response.headers()['cache-control']).toContain('no-store');
   const rows = await response.json();
   expect(Array.isArray(rows)).toBe(true);
-  const decision = rows.find((item: { decision_id?: string }) => item.decision_id === auditDecisionId);
+  const decision = rows.find(
+    (item: { decision_id?: string }) => item.decision_id === auditDecisionId,
+  );
   expect(decision).toBeDefined();
   expect(decision.features_used).toEqual({});
   expect(typeof decision.features_count).toBe('number');
