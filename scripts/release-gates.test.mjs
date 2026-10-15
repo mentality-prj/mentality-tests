@@ -103,12 +103,45 @@ test('only a Vercel bot preview matching the exact successful PR deployment is t
       }),
     /no successful Vercel/,
   );
+  const devSha = 'b'.repeat(40);
+  const treeSha = 'c'.repeat(40);
+  const ref = { object: { sha: devSha } };
+  const pulls = [{ number: 452, merged_at: '2026-10-15', merge_commit_sha: devSha }];
   const requester = async (url) => {
-    if (url.endsWith('/pulls/444')) return pull;
-    if (url.includes('/commits/')) return status;
-    return comments;
+    if (url.endsWith('/git/ref/heads/dev')) return ref;
+    if (url.includes('/pulls?')) return pulls;
+    if (url.endsWith('/pulls/452')) return pull;
+    if (url.endsWith('/commits/' + sha + '/status')) return status;
+    if (url.endsWith('/issues/452/comments?per_page=100')) return comments;
+    if (url.endsWith('/git/commits/' + devSha)) return { tree: { sha: treeSha } };
+    if (url.endsWith('/git/commits/' + sha)) return { tree: { sha: treeSha } };
+    throw new Error('Unexpected GitHub request: ' + url);
   };
-  assert.deepEqual(await resolvePreview({ GH_TOKEN: 'test-token' }, requester), expected);
+  assert.deepEqual(await resolvePreview({ GH_TOKEN: 'test-token' }, requester), {
+    url: preview,
+    sha: devSha,
+    prSha: sha,
+  });
+  const { selectMergedDevPull } = await import('./resolve-preview.mjs');
+  assert.deepEqual(selectMergedDevPull({ ref, pulls }), { devSha, prNumber: 452 });
+  await assert.rejects(
+    resolvePreview({ GH_TOKEN: 'test-token', E2E_WEB_PR_NUMBER: '444' }, requester),
+    /does not match/,
+  );
+  await assert.rejects(
+    resolvePreview({ GH_TOKEN: 'test-token' }, async (url) => {
+      if (url.includes('/pulls?')) return [];
+      return requester(url);
+    }),
+    /No merged frontend PR/,
+  );
+  await assert.rejects(
+    resolvePreview({ GH_TOKEN: 'test-token' }, async (url) => {
+      if (url.endsWith('/git/commits/' + sha)) return { tree: { sha: 'd'.repeat(40) } };
+      return requester(url);
+    }),
+    /source tree differs/,
+  );
 });
 
 test('public smoke requires an explicit HTTPS nonproduction preview origin', () => {
