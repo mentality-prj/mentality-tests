@@ -7,6 +7,7 @@ const runLogin = process.env.RUN_LOGIN_E2E === '1';
 const runRoles = process.env.RUN_ROLE_E2E === '1';
 const runLifecycle = process.env.RUN_LIFECYCLE_E2E === '1';
 const runMoodMutation = process.env.RUN_MOOD_MUTATION_E2E === '1';
+const runMoodHistory = process.env.RUN_MOOD_HISTORY_E2E === '1';
 const runQdipAdmin = process.env.RUN_QDIP_ADMIN_E2E === '1';
 const runB2B = process.env.RUN_B2B_E2E === '1';
 const runTwoQa = process.env.RUN_TWO_QA_E2E === '1';
@@ -20,6 +21,7 @@ if (
     runRoles ||
     runLifecycle ||
     runMoodMutation ||
+    runMoodHistory ||
     runB2B ||
     runTwoQa ||
     runQdipAdmin)
@@ -38,7 +40,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
   globalSetup:
-    runAuth || runRoles || runLifecycle || runMoodMutation || runQdipAdmin || runB2B
+    runAuth || runRoles || runLifecycle || runMoodMutation || runMoodHistory || runQdipAdmin || runB2B
       ? './global-setup.ts'
       : undefined,
   use: {
@@ -117,6 +119,18 @@ export default defineConfig({
             use: {
               ...devices['Desktop Chrome'],
               storageState: 'playwright/.auth/zitadel-mutation.json',
+            },
+          },
+        ]
+      : []),
+    ...(runMoodHistory
+      ? [
+          {
+            name: 'mood-history-api-chromium',
+            testMatch: '**/*.history.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: AUTH_STATE_PATH,
             },
           },
         ]
