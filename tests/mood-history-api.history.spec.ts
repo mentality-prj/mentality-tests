@@ -87,10 +87,14 @@ async function history(
 
 async function baseline(request: APIRequestContext): Promise<MoodRecord[]> {
   const result = await history(request, { page: 1, limit: FIXTURE_LIMIT });
-  expect(result.total, 'Seed at least six disposable tagged mood records before E2E').toBeGreaterThanOrEqual(6);
-  expect(result.total, 'Fixture exceeds E2E limit; use a dedicated smaller fixture tag').toBeLessThanOrEqual(
-    FIXTURE_LIMIT,
-  );
+  expect(
+    result.total,
+    'Seed at least six disposable tagged mood records before E2E',
+  ).toBeGreaterThanOrEqual(6);
+  expect(
+    result.total,
+    'Fixture exceeds E2E limit; use a dedicated smaller fixture tag',
+  ).toBeLessThanOrEqual(FIXTURE_LIMIT);
   expect(result.records).toHaveLength(result.total);
   expect(new Set(result.records.map(id)).size).toBe(result.total);
   return result.records;
@@ -103,9 +107,10 @@ function expectSameRecords(actual: MoodRecord[], expected: MoodRecord[]): void {
 function selectedValues(records: MoodRecord[], metric: Metric): number[] {
   const levels = new Set(records.map((item) => item[metric]));
   for (const value of [1, 3, 5]) {
-    expect(levels.has(value), `Seed ${metric} with values 1, 3 and 5 to verify non-contiguous OR`).toBe(
-      true,
-    );
+    expect(
+      levels.has(value),
+      `Seed ${metric} with values 1, 3 and 5 to verify non-contiguous OR`,
+    ).toBe(true);
   }
   return [1, 5];
 }
@@ -130,8 +135,14 @@ test.describe('Mood History: real NestJS read-only acceptance', () => {
   test('returns real, user-scoped fixture records with valid totals', async ({ request }) => {
     const records = await baseline(request);
     const days = new Set(records.map(weekday));
-    expect([...days].some((day) => day <= 5), 'Fixture needs a UTC weekday').toBe(true);
-    expect([...days].some((day) => day >= 6), 'Fixture needs a UTC weekend').toBe(true);
+    expect(
+      [...days].some((day) => day <= 5),
+      'Fixture needs a UTC weekday',
+    ).toBe(true);
+    expect(
+      [...days].some((day) => day >= 6),
+      'Fixture needs a UTC weekend',
+    ).toBe(true);
     expect(new Set(records.map((record) => record.createdAt)).size).toBe(records.length);
     for (const metric of ['moodLevel', 'stressLevel', 'energyLevel', 'focusLevel'] as const) {
       selectedValues(records, metric);
@@ -193,7 +204,9 @@ test.describe('Mood History: real NestJS read-only acceptance', () => {
     expectSameRecords(filtered.records, expected);
   });
 
-  test('interprets repeated ISO weekdays and tag OR without broadening results', async ({ request }) => {
+  test('interprets repeated ISO weekdays and tag OR without broadening results', async ({
+    request,
+  }) => {
     const records = await baseline(request);
     const targetDay = weekday(records[0]);
     const matched = await history(request, {
@@ -221,9 +234,7 @@ test.describe('Mood History: real NestJS read-only acceptance', () => {
 
   test('sorts before pagination and preserves total count across pages', async ({ request }) => {
     const records = await baseline(request);
-    const newest = [...records].sort(
-      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-    );
+    const newest = [...records].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     const oldest = [...newest].reverse();
 
     for (const [order, expected] of [
@@ -235,9 +246,7 @@ test.describe('Mood History: real NestJS read-only acceptance', () => {
       expect(first.total).toBe(records.length);
       expect(second.total).toBe(records.length);
       expect(first.records.map(id)).toEqual(expected.slice(0, PAGE_LIMIT).map(id));
-      expect(second.records.map(id)).toEqual(
-        expected.slice(PAGE_LIMIT, PAGE_LIMIT * 2).map(id),
-      );
+      expect(second.records.map(id)).toEqual(expected.slice(PAGE_LIMIT, PAGE_LIMIT * 2).map(id));
     }
   });
 
@@ -256,9 +265,12 @@ test.describe('Mood History: real NestJS read-only acceptance', () => {
       'order=sideways',
     ];
     for (const query of invalid) {
-      const result = await request.get(`${ENDPOINT}?tags=${encodeURIComponent(fixtureTag())}&${query}`, {
-        maxRedirects: 0,
-      });
+      const result = await request.get(
+        `${ENDPOINT}?tags=${encodeURIComponent(fixtureTag())}&${query}`,
+        {
+          maxRedirects: 0,
+        },
+      );
       expect(result.status(), `Invalid query must be rejected: ${query}`).toBe(400);
       expect(result.headers()['cache-control']).toContain('no-store');
     }
