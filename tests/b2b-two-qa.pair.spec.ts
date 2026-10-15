@@ -58,9 +58,7 @@ async function authenticate(
     const memberships = await context.request.get('/api/backend/companies/mine');
     expect(memberships.status(), 'Company selector must be authenticated').toBe(200);
     const companies = (await memberships.json()) as Array<{ id: string }>;
-    expect(companies, 'QA actor must belong to exactly one isolated test company').toHaveLength(
-      1,
-    );
+    expect(companies, 'QA actor must belong to exactly one isolated test company').toHaveLength(1);
     expect(companies[0]?.id).toMatch(/^[0-9a-f]{24}$/i);
 
     return {
@@ -75,10 +73,7 @@ async function authenticate(
   }
 }
 
-test('qa1 and qa2 cannot read or select each other\'s company', async ({
-  browser,
-  baseURL,
-}) => {
+test("qa1 and qa2 cannot read or select each other's company", async ({ browser, baseURL }) => {
   const origin = new URL(baseURL!).origin;
   let first: TestActor | undefined;
   let second: TestActor | undefined;
@@ -95,9 +90,7 @@ test('qa1 and qa2 cannot read or select each other\'s company', async ({
       [first, second],
       [second, first],
     ] as const) {
-      const owned = await actor.context.request.get(
-        '/api/backend/companies/' + actor.companyId,
-      );
+      const owned = await actor.context.request.get('/api/backend/companies/' + actor.companyId);
       expect(owned.status(), 'Owner must access their company').toBe(200);
       for (const suffix of [
         '',
