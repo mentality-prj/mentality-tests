@@ -1,0 +1,59 @@
+name: Dzvin two-QA company isolation
+
+# Dedicated live-account test; never run real secrets on pull_request code.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Exact HTTPS nonproduction web preview with approved backend
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-two-qa-company-e2e
+  cancel-in-progress: false
+
+jobs:
+  two-qa-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: e2e
+    env:
+      CI: 'true'
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      RUN_TWO_QA_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+      E2E_QA1_USERNAME: qa1@qdip.ai
+      # Deliberately no guess for the second address; qa2.qdip.ai is not an email.
+      E2E_QA2_USERNAME: ${{ vars.E2E_QA2_USERNAME }}
+      E2E_QA1_PASSWORD: ${{ secrets.E2E_QA1_PASSWORD }}
+      E2E_QA2_PASSWORD: ${{ secrets.E2E_QA2_PASSWORD }}
+      E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+      E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+      E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify preview and two QA credential bindings
+        run: node scripts/b2b-pair-preflight.mjs
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install test dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run real Zitadel logins and A/B isolation without retries
+        shell: bash
+        run: |
+          set +e
+          pnpm exec playwright test --project=two-qa-company-chromium --reporter=json \
+            > "$RUNNER_TEMP/dzvin-two-qa-results.json"
+          test_status=$?
+          set -e
+          node scripts/b2b-pair-results.mjs "$RUNNER_TEMP/dzvin-two-qa-results.json"
+          exit "$test_status"
