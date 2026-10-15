@@ -34,6 +34,11 @@ export function assertReleasePreflight(env) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(env.E2E_QDIP_ORGANIZATION_ID ?? '')) {
     failures.push('E2E_QDIP_ORGANIZATION_ID must reference a disposable QDIP organization');
   }
+  for (const name of ['E2E_QDIP_KEY_ID', 'E2E_QDIP_AUDIT_DECISION_ID']) {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(env[name] ?? '')) {
+      failures.push(name + ' must reference a disposable QDIP fixture');
+    }
+  }
   const foreign = env.E2E_FOREIGN_RESOURCE_PATH;
   if (
     !foreign ||
