@@ -37,6 +37,11 @@ jobs:
           RUN_B2B_E2E: '1'
           E2E_BASE_URL: https://isolated-preview.example
         run: pnpm exec playwright test --project=b2b-isolation-chromium --list
+      - name: Discover Mood History backend E2E without contacting test services
+        env:
+          RUN_MOOD_HISTORY_E2E: '1'
+          E2E_BASE_URL: https://isolated-preview.example
+        run: pnpm exec playwright test --project=mood-history-api-chromium --list
       - name: Discover two-QA real login project without contacting preview
         env:
           RUN_TWO_QA_E2E: '1'

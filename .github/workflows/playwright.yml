@@ -22,6 +22,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_mood_history:
+        description: Read-only NestJS Mood History contract using a disposable seeded tenant
+        required: true
+        type: boolean
+        default: false
       run_roles:
         description: Verify dedicated admin, company and scientist/research_admin accounts
         required: true
@@ -90,6 +95,16 @@ jobs:
           E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
           E2E_MUTATION_STORAGE_STATE_BASE64: ${{ secrets.E2E_MUTATION_STORAGE_STATE_BASE64 }}
         run: pnpm exec playwright test --project=disposable-mood-mutation-chromium
+      - name: Authenticated Mood History backend API acceptance (read-only)
+        if: ${{ inputs.run_mood_history }}
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_MOOD_HISTORY_E2E: '1'
+          E2E_AUTH_STORAGE_STATE_BASE64: ${{ secrets.E2E_AUTH_STORAGE_STATE_BASE64 }}
+          E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
+          E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+          E2E_MOOD_HISTORY_FIXTURE_TAG: ${{ vars.E2E_MOOD_HISTORY_FIXTURE_TAG }}
+        run: pnpm exec playwright test --project=mood-history-api-chromium --reporter=list
       - name: Real Zitadel PKCE browser login
         if: ${{ inputs.run_login }}
         env:
