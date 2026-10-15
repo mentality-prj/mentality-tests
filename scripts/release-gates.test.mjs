@@ -8,6 +8,8 @@ import { assertReleaseResults, REQUIRED_PROJECTS } from './release-results.mjs';
 function env() {
   return {
     E2E_QDIP_ORGANIZATION_ID: 'disposable-qdip-org',
+    E2E_QDIP_KEY_ID: 'disposable-key',
+    E2E_QDIP_AUDIT_DECISION_ID: 'disposable-trace',
     E2E_BASE_URL: 'https://isolated-preview.vercel.app',
     E2E_ALLOWED_MUTATION_ORIGIN: 'https://isolated-preview.vercel.app',
     E2E_DISPOSABLE_TENANT_CONFIRMED: '1',
@@ -42,6 +44,8 @@ const MANDATORY = [
   'QDIP administrative API rejects ordinary and company users',
   'QDIP organization keys never disclose secrets',
   'QDIP write endpoint rejects unauthorized callers',
+  'anonymous callers cannot read QDIP administrative resources',
+  'QDIP audit fixture suppresses raw feature values and rule evidence',
   'authenticated mobile pages render without horizontal overflow',
   'protected SSR survives locale navigation and hard reload',
 ];
@@ -187,4 +191,6 @@ test('requires every mandatory test case and rejects flaky retry success', () =>
 });
 test('requires an explicit disposable QDIP organization', () => {
   assert.throws(() => assertReleasePreflight({ ...env(), E2E_QDIP_ORGANIZATION_ID: '' }));
+  assert.throws(() => assertReleasePreflight({ ...env(), E2E_QDIP_KEY_ID: '' }));
+  assert.throws(() => assertReleasePreflight({ ...env(), E2E_QDIP_AUDIT_DECISION_ID: '' }));
 });
