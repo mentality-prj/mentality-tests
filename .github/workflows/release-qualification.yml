@@ -44,6 +44,8 @@ jobs:
       E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
       E2E_FOREIGN_RESOURCE_PATH: ${{ vars.E2E_FOREIGN_RESOURCE_PATH }}
       E2E_QDIP_ORGANIZATION_ID: ${{ vars.E2E_QDIP_ORGANIZATION_ID }}
+      E2E_QDIP_KEY_ID: ${{ vars.E2E_QDIP_KEY_ID }}
+      E2E_QDIP_AUDIT_DECISION_ID: ${{ vars.E2E_QDIP_AUDIT_DECISION_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
