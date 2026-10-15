@@ -13,7 +13,7 @@ export function assertTwoQaPreflight(env) {
     ['E2E_QA1_USERNAME', 'E2E_QA1_PASSWORD'],
     ['E2E_QA2_USERNAME', 'E2E_QA2_PASSWORD'],
   ];
-  const validEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   for (const [usernameKey, passwordKey] of identities) {
     if (!validEmail.test(env[usernameKey] ?? '')) {
       failures.push(usernameKey + ' must be a valid full email address');
