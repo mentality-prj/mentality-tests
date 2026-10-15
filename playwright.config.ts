@@ -40,7 +40,13 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: process.env.CI ? 'list' : 'html',
   globalSetup:
-    runAuth || runRoles || runLifecycle || runMoodMutation || runMoodHistory || runQdipAdmin || runB2B
+    runAuth ||
+    runRoles ||
+    runLifecycle ||
+    runMoodMutation ||
+    runMoodHistory ||
+    runQdipAdmin ||
+    runB2B
       ? './global-setup.ts'
       : undefined,
   use: {
