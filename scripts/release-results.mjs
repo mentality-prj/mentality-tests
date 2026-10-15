@@ -26,6 +26,8 @@ const REQUIRED_CASES = [
   'QDIP administrative API rejects ordinary and company users',
   'QDIP organization keys never disclose secrets',
   'QDIP write endpoint rejects unauthorized callers',
+  'anonymous callers cannot read QDIP administrative resources',
+  'QDIP audit fixture suppresses raw feature values and rule evidence',
   'authenticated mobile pages render without horizontal overflow',
   'protected SSR survives locale navigation and hard reload',
 ];
