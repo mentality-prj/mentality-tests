@@ -72,13 +72,10 @@ test.describe('Gate 2 / disposable company role mutations', () => {
         // The server must recheck canonical admin membership inside group CRUD
         // transactions, even when an earlier browser guard saw a former admin.
         const groupUrl = '/api/backend/companies/' + companyId + '/groups';
-        const deniedCreate = await employee.post(
-          groupUrl,
-          {
-            headers: { origin },
-            data: { name: 'MUST-NOT-CREATE-AFTER-DEMOTION', type: 'team' },
-          },
-        );
+        const deniedCreate = await employee.post(groupUrl, {
+          headers: { origin },
+          data: { name: 'MUST-NOT-CREATE-AFTER-DEMOTION', type: 'team' },
+        });
         expect(deniedCreate.status(), 'Demoted user must not create groups').toBe(403);
         const deniedEdit = await employee.patch(
           groupUrl + '/' + requiredFixture('E2E_B2B_GROUP_A_ID'),
