@@ -27,8 +27,8 @@ jobs:
       RUN_TWO_QA_E2E: '1'
       RUN_RELEASE_QUALIFICATION: '1'
       E2E_QA1_USERNAME: qa1@qdip.ai
-      # Deliberately no guess for the second address; qa2.qdip.ai is not an email.
-      E2E_QA2_USERNAME: ${{ vars.E2E_QA2_USERNAME }}
+      # Explicitly confirmed second QA identity; no extra username variable required.
+      E2E_QA2_USERNAME: qa2@qdip.ai
       E2E_QA1_PASSWORD: ${{ secrets.E2E_QA1_PASSWORD }}
       E2E_QA2_PASSWORD: ${{ secrets.E2E_QA2_PASSWORD }}
       E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
