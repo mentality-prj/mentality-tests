@@ -154,6 +154,8 @@ an unverified backend deployment.
 <!-- prettier-ignore-end -->
 
 
+<!-- prettier-ignore-start -->
+
 ## Two-user real Zitadel company isolation — independent smoke
 
 The protected manual **Dzvin two-QA company isolation** workflow runs one
@@ -190,3 +192,5 @@ signal, not a replacement for the separate 14-case Gate 2 role, migration,
 and transaction qualification. Confirm that the preview is deployed from
 web #444 and backed by backend #132 at the recorded SHA before treating
 any result as release evidence.
+
+<!-- prettier-ignore-end -->
