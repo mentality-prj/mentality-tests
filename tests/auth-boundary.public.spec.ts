@@ -35,6 +35,23 @@ test.describe('Anonymous authentication and BFF boundaries', () => {
     expect(result.headers()['cache-control']).toContain('no-store');
   });
 
+  test('anonymous QDIP Gate 3 admin reads and reconciliation cannot expose records', async ({
+    request,
+  }) => {
+    for (const path of [
+      '/api/backend/dip-admin/organizations',
+      '/api/backend/dip-admin/mutations/reconciliation?limit=1',
+      '/api/backend/dip-admin/organizations/qdip-gate3-probe/keys',
+    ]) {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status(), path).toBe(401);
+      expect(response.headers()['cache-control'], path).toContain('no-store');
+      expect(response.headers()['location'], path).toBeUndefined();
+      const payload = await response.text();
+      expect(payload).not.toMatch(/idempotencyKey|actorSub|key_hash|access_token|refresh_token/);
+    }
+  });
+
   test('cross-origin backend mutations are rejected before session checks', async ({ request }) => {
     const result = await request.post('/api/backend/mood-record', {
       data: { moodLevel: 4 },
