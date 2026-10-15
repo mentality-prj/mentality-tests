@@ -57,7 +57,7 @@ jobs:
       - name: Resolve exact-head Vercel preview if no e2e URL is configured
         env:
           GH_TOKEN: ${{ github.token }}
-          E2E_WEB_PR_NUMBER: ${{ vars.E2E_WEB_PR_NUMBER }}
+          # Always resolve the PR matching current dev, never a stale manually pinned PR.
         run: node scripts/resolve-preview.mjs
 
       - name: Verify nonproduction preview URL before browser navigation
