@@ -29,7 +29,7 @@ jobs:
       - name: TypeScript
         run: pnpm typecheck
       - name: Fail-closed release gate policy unit tests
-        run: node --test scripts/release-gates.test.mjs scripts/b2b-preflight.test.mjs scripts/b2b-results.test.mjs scripts/b2b-pair.test.mjs
+        run: node --test scripts/release-gates.test.mjs scripts/b2b-preflight.test.mjs scripts/b2b-results.test.mjs scripts/b2b-pair.test.mjs scripts/qdip-gate3-gates.test.mjs
       - name: Playwright test discovery (no live production traffic)
         run: pnpm exec playwright test --list
       - name: Discover isolated B2B negative E2E without contacting preview
@@ -42,3 +42,8 @@ jobs:
           RUN_TWO_QA_E2E: '1'
           E2E_BASE_URL: https://isolated-preview.example
         run: pnpm exec playwright test --project=two-qa-company-chromium --list
+      - name: Discover independent QDIP Gate 3 cases without accessing Zitadel
+        env:
+          RUN_QDIP_ADMIN_E2E: '1'
+          E2E_BASE_URL: https://mentality-web-git-qa-taras-gezs-projects.vercel.app
+        run: pnpm exec playwright test --project=qdip-admin-chromium --list
