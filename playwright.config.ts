@@ -12,6 +12,7 @@ const runQdipAdmin = process.env.RUN_QDIP_ADMIN_E2E === '1';
 const runB2B = process.env.RUN_B2B_E2E === '1';
 const runTwoQa = process.env.RUN_TWO_QA_E2E === '1';
 const runB2c = process.env.RUN_B2C_E2E === '1';
+const runB2cDiary = process.env.RUN_B2C_DIARY_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
 if (
@@ -26,6 +27,7 @@ if (
     runB2B ||
     runTwoQa ||
     runB2c ||
+    runB2cDiary ||
     runQdipAdmin)
 ) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
@@ -48,6 +50,7 @@ export default defineConfig({
     runMoodMutation ||
     runMoodHistory ||
     runB2c ||
+    runB2cDiary ||
     runQdipAdmin ||
     runB2B
       ? './global-setup.ts'
@@ -185,6 +188,18 @@ export default defineConfig({
           {
             name: 'b2c-isolation-chromium',
             testMatch: '**/*.b2c.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: { cookies: [], origins: [] },
+            },
+          },
+        ]
+      : []),
+    ...(runB2cDiary
+      ? [
+          {
+            name: 'b2c-diary-privacy-chromium',
+            testMatch: '**/*.diary.spec.ts',
             use: {
               ...devices['Desktop Chrome'],
               storageState: { cookies: [], origins: [] },
