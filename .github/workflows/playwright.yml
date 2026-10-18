@@ -66,6 +66,7 @@ jobs:
         env:
           E2E_BASE_URL: ${{ inputs.base_url }}
           RUN_REMOTE_SMOKE: '1'
+          E2E_B2C_ONLY: ${{ inputs.run_b2c && '1' || '0' }}
         run: pnpm exec playwright test --project=public-chromium
       - name: Authenticated user session, RBAC, refresh/logout and BFF
         if: ${{ inputs.run_auth }}
