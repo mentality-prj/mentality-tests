@@ -1,0 +1,81 @@
+name: Dzvin B2C One-Time Staging Qualification
+
+on:
+  push:
+    branches:
+      - e2e/dzvin-b2c-qualify-20261018
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-b2c-one-time-20261018
+  cancel-in-progress: false
+
+jobs:
+  anonymous-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      E2E_BASE_URL: https://mentality-pvsj69g4v-taras-gezs-projects.vercel.app
+    steps:
+      - name: Check exact nonproduction preview, release gate and public pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in /api/backend/mood-risk/actionable /api/backend/mood-feed /api/backend/companies; do
+            status=$(curl -sSL --max-time 20 -o /dev/null -w '%{http_code}' "$E2E_BASE_URL$path")
+            echo "$path -> $status"
+            test "$status" = 404
+          done
+          for path in /api/backend/mood-record /api/backend/user-statistics/mood /api/backend/diary/user; do
+            status=$(curl -sSL --max-time 20 -o /dev/null -w '%{http_code}' "$E2E_BASE_URL$path")
+            echo "$path -> $status"
+            test "$status" = 401
+          done
+          for path in /en/my-day /en/my-progress; do
+            status=$(curl -sSL --max-time 20 -o /dev/null -w '%{http_code}' "$E2E_BASE_URL$path")
+            echo "$path -> $status"
+            test "$status" = 200
+          done
+
+  authenticated-b2c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: e2e
+    env:
+      E2E_BASE_URL: https://mentality-pvsj69g4v-taras-gezs-projects.vercel.app
+      E2E_ALLOWED_MUTATION_ORIGIN: https://mentality-pvsj69g4v-taras-gezs-projects.vercel.app
+      E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+      RUN_B2C_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+      E2E_B2C_A_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_A_STORAGE_STATE_BASE64 }}
+      E2E_B2C_B_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_B_STORAGE_STATE_BASE64 }}
+      E2E_B2C_A_MOOD_ID: ${{ vars.E2E_B2C_A_MOOD_ID }}
+      E2E_B2C_B_MOOD_ID: ${{ vars.E2E_B2C_B_MOOD_ID }}
+      E2E_B2C_A_DIARY_ID: ${{ vars.E2E_B2C_A_DIARY_ID }}
+      E2E_B2C_B_DIARY_ID: ${{ vars.E2E_B2C_B_DIARY_ID }}
+    steps:
+      - name: Validate existing protected test fixtures (never print secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in E2E_DISPOSABLE_TENANT_CONFIRMED E2E_B2C_A_STORAGE_STATE_BASE64 E2E_B2C_B_STORAGE_STATE_BASE64 E2E_B2C_A_MOOD_ID E2E_B2C_B_MOOD_ID E2E_B2C_A_DIARY_ID E2E_B2C_B_DIARY_ID; do
+            if test -z "${!key:-}"; then
+              echo "::error::Required e2e environment variable $key is not configured"
+              exit 1
+            fi
+          done
+          test "$E2E_DISPOSABLE_TENANT_CONFIRMED" = 1
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies and Chromium
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run real browser privacy and B2C journey
+        run: pnpm exec playwright test --project=b2c-isolation-chromium --reporter=list
