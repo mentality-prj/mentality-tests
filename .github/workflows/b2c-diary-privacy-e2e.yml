@@ -1,0 +1,59 @@
+name: Dzvin B2C diary privacy E2E
+
+# Manual live Playwright execution, NOT PR CI. Never reuse production accounts.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Exact HTTPS NONPRODUCTION preview origin
+        required: true
+        type: string
+      deployed_web_sha:
+        description: Exact deployed mentality-web commit SHA (operator verified)
+        required: true
+        type: string
+      deployed_backend_sha:
+        description: Exact deployed mentality-back commit SHA (operator verified)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzvin-b2c-diary-privacy-e2e
+  cancel-in-progress: false
+
+jobs:
+  diary-privacy-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: e2e
+    env:
+      CI: 'true'
+      RUN_RELEASE_QUALIFICATION: '1'
+      RUN_B2C_DIARY_E2E: '1'
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      E2E_DEPLOYED_WEB_SHA: ${{ inputs.deployed_web_sha }}
+      E2E_DEPLOYED_BACKEND_SHA: ${{ inputs.deployed_backend_sha }}
+      E2E_B2C_A_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_A_STORAGE_STATE_BASE64 }}
+      E2E_B2C_B_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_B_STORAGE_STATE_BASE64 }}
+      E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
+      E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.26.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Verify nonproduction origin, isolated tenant, two sessions, and SHA inputs
+        run: node scripts/b2c-diary-preflight.mjs
+      - name: Install E2E dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Execute real two-user diary API + browser E2E, no retries
+        run: pnpm exec playwright test --project=b2c-diary-privacy-chromium --reporter=list --retries=0 --workers=1

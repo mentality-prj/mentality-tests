@@ -199,3 +199,33 @@ In the protected GitHub Actions `e2e` environment set:
 The suite checks authenticated My Day/Mood Tracker/Diary/My Progress/Achievements pages, local-timezone statistics through the real BFF, personal diary history, own mood/diary reads, **bidirectional** foreign-record denial and anonymous denial. It also checks that B2C-only BFF denies legacy `mood-risk`, `mood-feed` and company endpoints; a preview missing the B2C-only switch fails the gate. It fails if the sessions resolve to the same server identity, a required fixture is missing, or the target is not the isolated preview.
 
 This tests B2C access boundaries, **not** production readiness alone. Record the exact frontend/backend deployed commit SHAs and successful workflow URL. Verify B2C-only LLM isolation separately (including asynchronous consumers), complete the daily submission/confirmation/return-visit scenarios, and reconcile cleanup before promoting production.
+
+## B2C diary privacy browser E2E — manual only
+
+The **Dzvin B2C diary privacy E2E** workflow is a separate manual run, not the
+default CI pipeline and not the read-only `run_b2c` project. It executes Chromium
+against a **nonproduction preview** with matching backend, under GitHub protected
+environment `e2e`. It will refuse to run without explicit
+`E2E_DISPOSABLE_TENANT_CONFIRMED=1`, an exact
+`E2E_ALLOWED_MUTATION_ORIGIN`, and two independent
+`E2E_B2C_{A,B}_STORAGE_STATE_BASE64` secrets.
+
+Submit the exact *deployed* frontend and backend commit SHAs along with the preview
+URL. The preflight checks SHA syntax, **not** whether the deployment runs those
+commits: compare Vercel deployment metadata and backend deploy metadata
+independently. Never reuse production accounts or approve a production hostname.
+
+One browser scenario creates uniquely identified diary fixtures for users A and
+B, confirms 404 on bidirectional foreign GET/DELETE, confirms anonymous DELETE 401
+and cross-origin DELETE 403, verifies the foreign fixtures survive attacks, reads
+the downloaded JSON for both users (including archived notes, no cross-user
+leakage), tests localized UK/EN/PL privacy/urgent-help navigation, exercises
+cancel and confirm on the real UI delete dialog, checks API deletion and repeated
+deletion, and cleans up **only the newly created records** in a `finally` block.
+Cleanup failure makes the test fail; perform an independent tenant reset if that
+happens. No logs, screenshots, traces or artifacts containing journal data.
+
+This is acceptance evidence only after an actual green manual run linked to
+`mentality-web` issues #439/#513/#449. Authenticated E2E is **not passed** by
+Playwright discovery, a merged PR or a passing unit test. The separate full B2C
+read-only suite and release tests are still required.
