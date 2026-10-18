@@ -119,6 +119,8 @@ jobs:
           E2E_B2C_B_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_B_STORAGE_STATE_BASE64 }}
           E2E_B2C_A_MOOD_ID: ${{ vars.E2E_B2C_A_MOOD_ID }}
           E2E_B2C_B_MOOD_ID: ${{ vars.E2E_B2C_B_MOOD_ID }}
+          E2E_B2C_A_DIARY_ID: ${{ vars.E2E_B2C_A_DIARY_ID }}
+          E2E_B2C_B_DIARY_ID: ${{ vars.E2E_B2C_B_DIARY_ID }}
           E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
           E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
         run: pnpm exec playwright test --project=b2c-isolation-chromium --reporter=list
