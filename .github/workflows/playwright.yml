@@ -27,6 +27,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_b2c:
+        description: Read-only B2C two-user privacy and progress gate on an isolated preview
+        required: true
+        type: boolean
+        default: false
       run_roles:
         description: Verify dedicated admin, company and scientist/research_admin accounts
         required: true
@@ -105,6 +110,18 @@ jobs:
           E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
           E2E_MOOD_HISTORY_FIXTURE_TAG: ${{ vars.E2E_MOOD_HISTORY_FIXTURE_TAG }}
         run: pnpm exec playwright test --project=mood-history-api-chromium --reporter=list
+      - name: B2C personal progress and cross-user isolation (read-only)
+        if: ${{ inputs.run_b2c }}
+        env:
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          RUN_B2C_E2E: '1'
+          E2E_B2C_A_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_A_STORAGE_STATE_BASE64 }}
+          E2E_B2C_B_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_B_STORAGE_STATE_BASE64 }}
+          E2E_B2C_A_MOOD_ID: ${{ vars.E2E_B2C_A_MOOD_ID }}
+          E2E_B2C_B_MOOD_ID: ${{ vars.E2E_B2C_B_MOOD_ID }}
+          E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
+          E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+        run: pnpm exec playwright test --project=b2c-isolation-chromium --reporter=list
       - name: Real Zitadel PKCE browser login
         if: ${{ inputs.run_login }}
         env:
