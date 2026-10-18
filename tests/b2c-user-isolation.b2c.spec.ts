@@ -100,7 +100,10 @@ test('B2C personal journey and user isolation use real authenticated backend rea
       expect(response.headers()['cache-control']).toContain('no-store');
     }
 
-    anonymous = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
+    anonymous = await browser.newContext({
+      baseURL: origin,
+      storageState: { cookies: [], origins: [] },
+    });
     for (const path of [
       '/api/backend/user-statistics/mood',
       '/api/backend/mood-record/' + a.moodId,
