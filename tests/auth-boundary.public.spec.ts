@@ -44,7 +44,10 @@ test.describe('Anonymous authentication and BFF boundaries', () => {
       '/api/backend/dip-admin/organizations/qdip-gate3-probe/keys',
     ]) {
       const response = await request.get(path, { maxRedirects: 0 });
-      expect(response.status(), path).toBe(401);
+      // In a B2C-only release, privileged API families are deliberately absent
+      // (404); on the full application anonymous callers receive 401.
+      const expectedStatus = process.env.E2E_B2C_ONLY === '1' ? 404 : 401;
+      expect(response.status(), path).toBe(expectedStatus);
       expect(response.headers()['cache-control'], path).toContain('no-store');
       expect(response.headers()['location'], path).toBeUndefined();
       const payload = await response.text();
@@ -68,6 +71,38 @@ test.describe('Anonymous authentication and BFF boundaries', () => {
     const logout = await request.post('/api/auth/logout', { headers: { origin }, data: {} });
     expect(logout.status()).toBe(403);
   });
+
+  if (process.env.E2E_B2C_ONLY === '1') {
+    test('B2C-only personal API isolation works without authenticated cookies', async ({ request }) => {
+      const fakeId = '000000000000000000000000';
+      for (const path of [
+        '/api/backend/diary/user',
+        '/api/backend/diary/' + fakeId,
+      ]) {
+        const response = await request.get(path, { maxRedirects: 0 });
+        expect(response.status(), path).toBe(401);
+        expect(response.headers()['cache-control'], path).toContain('no-store');
+      }
+
+      // Neither request can mutate anything: no credentials + nonexistent record.
+      const sameOrigin = await request.delete('/api/backend/diary/' + fakeId, {
+        headers: { origin: new URL(process.env.E2E_BASE_URL!).origin },
+      });
+      expect(sameOrigin.status()).toBe(401);
+      expect(sameOrigin.headers()['cache-control']).toContain('no-store');
+
+      const foreignOrigin = await request.delete('/api/backend/diary/' + fakeId, {
+        headers: { origin: 'https://attacker.invalid' },
+      });
+      expect(foreignOrigin.status()).toBe(403);
+
+      for (const path of ['mood-risk/actionable', 'mood-feed', 'companies']) {
+        const response = await request.get('/api/backend/' + path);
+        expect(response.status(), path).toBe(404);
+        expect(response.headers()['cache-control'], path).toContain('no-store');
+      }
+    });
+  }
 
   test('callback with invalid OIDC state cannot establish a session', async ({ page }) => {
     await page.goto('/callback?code=invalid&state=forged');
