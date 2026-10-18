@@ -60,14 +60,8 @@ export async function prepareAuthState(): Promise<void> {
   }
   if (process.env.RUN_B2C_E2E === '1') {
     storageEntries.push(
-      [
-        'E2E_B2C_A_STORAGE_STATE_BASE64',
-        join(process.cwd(), 'playwright/.auth/b2c-a.json'),
-      ],
-      [
-        'E2E_B2C_B_STORAGE_STATE_BASE64',
-        join(process.cwd(), 'playwright/.auth/b2c-b.json'),
-      ],
+      ['E2E_B2C_A_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/b2c-a.json')],
+      ['E2E_B2C_B_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/b2c-b.json')],
     );
   }
   if (process.env.RUN_B2B_E2E === '1') {
