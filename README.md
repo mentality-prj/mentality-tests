@@ -186,3 +186,16 @@ pnpm exec playwright test --project=mood-history-api-chromium --reporter=list
 ```
 
 For local runs also provide `E2E_AUTH_STORAGE_STATE_BASE64` securely. Ordinary PR CI only discovers these tests and performs static checks; it must **not** be reported as a successful live Backend E2E. The remote suite is deliberately manual/opt-in so new PRs do not trigger costly builds or writes.
+
+## B2C P0 privacy and progress gate (read-only)
+
+Use the manual **Zitadel / BFF Remote E2E** workflow with `run_b2c=true` against an approved nonproduction Next.js preview connected to the **matching** NestJS/MongoDB backend. The new `b2c-isolation-chromium` project is deliberately opt-in and never creates mood records. Production hosts are explicitly rejected.
+
+In the protected GitHub Actions `e2e` environment set:
+
+- Secrets: `E2E_B2C_A_STORAGE_STATE_BASE64` and `E2E_B2C_B_STORAGE_STATE_BASE64` (fresh, independent normal-user Playwright states for the preview). Do not reuse admin or real-user credentials.
+- Variables: `E2E_B2C_A_MOOD_ID` and `E2E_B2C_B_MOOD_ID` (distinct seeded MongoDB mood record IDs, each owned by the corresponding account), `E2E_ALLOWED_MUTATION_ORIGIN` (exact preview origin), and `E2E_DISPOSABLE_TENANT_CONFIRMED=1`.
+
+The suite checks authenticated My Day/Mood Tracker/My Progress/Achievements pages, local-timezone statistics through the real BFF, own-record reads, **bidirectional** foreign-record denial and anonymous denial. It fails if the sessions resolve to the same server identity, a required fixture is missing, or the target is not the isolated preview.
+
+This tests B2C access boundaries, **not** production readiness alone. Record the exact frontend/backend deployed commit SHAs and successful workflow URL. Verify B2C-only LLM isolation separately (including asynchronous consumers), complete the daily submission/confirmation/return-visit scenarios, and reconcile cleanup before promoting production.
