@@ -60,13 +60,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          missing=0
           for key in E2E_DISPOSABLE_TENANT_CONFIRMED E2E_B2C_A_STORAGE_STATE_BASE64 E2E_B2C_B_STORAGE_STATE_BASE64 E2E_B2C_A_MOOD_ID E2E_B2C_B_MOOD_ID E2E_B2C_A_DIARY_ID E2E_B2C_B_DIARY_ID; do
             if test -z "${!key:-}"; then
               echo "::error::Required e2e environment variable $key is not configured"
-              exit 1
+              missing=1
             fi
           done
-          test "$E2E_DISPOSABLE_TENANT_CONFIRMED" = 1
+          if test "$E2E_DISPOSABLE_TENANT_CONFIRMED" != 1; then
+            echo "::error::The test tenant has not been marked disposable"
+            missing=1
+          fi
+          exit "$missing"
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -79,3 +84,47 @@ jobs:
           pnpm exec playwright install --with-deps chromium
       - name: Run real browser privacy and B2C journey
         run: pnpm exec playwright test --project=b2c-isolation-chromium --reporter=list
+
+  two-qa-zitadel-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: e2e
+    env:
+      E2E_BASE_URL: https://mentality-pvsj69g4v-taras-gezs-projects.vercel.app
+      RUN_LOGIN_E2E: '1'
+      RUN_RELEASE_QUALIFICATION: '1'
+      E2E_QA1_PASSWORD: ${{ secrets.E2E_QA1_PASSWORD }}
+      E2E_QA2_PASSWORD: ${{ secrets.E2E_QA2_PASSWORD }}
+      E2E_ZITADEL_USERNAME_SELECTOR: ${{ vars.E2E_ZITADEL_USERNAME_SELECTOR }}
+      E2E_ZITADEL_PASSWORD_SELECTOR: ${{ vars.E2E_ZITADEL_PASSWORD_SELECTOR }}
+      E2E_ZITADEL_SUBMIT_SELECTOR: ${{ vars.E2E_ZITADEL_SUBMIT_SELECTOR }}
+    steps:
+      - name: Confirm previously provisioned QA accounts and selectors
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in E2E_QA1_PASSWORD E2E_QA2_PASSWORD E2E_ZITADEL_USERNAME_SELECTOR E2E_ZITADEL_PASSWORD_SELECTOR E2E_ZITADEL_SUBMIT_SELECTOR; do
+            if test -z "${!key:-}"; then
+              echo "::error::Existing QA resource $key is unavailable in this GitHub e2e environment"
+              exit 1
+            fi
+          done
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies and Chromium
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Test real Zitadel QA1 and QA2 PKCE round trips
+        shell: bash
+        run: |
+          set +e
+          E2E_ZITADEL_USERNAME=qa1@qdip.ai E2E_ZITADEL_PASSWORD="$E2E_QA1_PASSWORD" pnpm exec playwright test --project=zitadel-login-chromium --reporter=list
+          qa1_result=$?
+          E2E_ZITADEL_USERNAME=qa2@qdip.ai E2E_ZITADEL_PASSWORD="$E2E_QA2_PASSWORD" pnpm exec playwright test --project=zitadel-login-chromium --reporter=list
+          qa2_result=$?
+          if test "$qa1_result" != 0 || test "$qa2_result" != 0; then exit 1; fi
