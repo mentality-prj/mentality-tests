@@ -44,7 +44,10 @@ test.describe('Anonymous authentication and BFF boundaries', () => {
       '/api/backend/dip-admin/organizations/qdip-gate3-probe/keys',
     ]) {
       const response = await request.get(path, { maxRedirects: 0 });
-      expect(response.status(), path).toBe(401);
+      // In a B2C-only release, privileged API families are deliberately absent
+      // (404); on the full application anonymous callers receive 401.
+      const expectedStatus = process.env.E2E_B2C_ONLY === '1' ? 404 : 401;
+      expect(response.status(), path).toBe(expectedStatus);
       expect(response.headers()['cache-control'], path).toContain('no-store');
       expect(response.headers()['location'], path).toBeUndefined();
       const payload = await response.text();
