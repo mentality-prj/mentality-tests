@@ -11,6 +11,7 @@ const runMoodHistory = process.env.RUN_MOOD_HISTORY_E2E === '1';
 const runQdipAdmin = process.env.RUN_QDIP_ADMIN_E2E === '1';
 const runB2B = process.env.RUN_B2B_E2E === '1';
 const runTwoQa = process.env.RUN_TWO_QA_E2E === '1';
+const runB2c = process.env.RUN_B2C_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
 if (
@@ -24,6 +25,7 @@ if (
     runMoodHistory ||
     runB2B ||
     runTwoQa ||
+    runB2c ||
     runQdipAdmin)
 ) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
@@ -45,6 +47,7 @@ export default defineConfig({
     runLifecycle ||
     runMoodMutation ||
     runMoodHistory ||
+    runB2c ||
     runQdipAdmin ||
     runB2B
       ? './global-setup.ts'
@@ -170,6 +173,18 @@ export default defineConfig({
           {
             name: 'two-qa-company-chromium',
             testMatch: '**/*.pair.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: { cookies: [], origins: [] },
+            },
+          },
+        ]
+      : []),
+    ...(runB2c
+      ? [
+          {
+            name: 'b2c-isolation-chromium',
+            testMatch: '**/*.b2c.spec.ts',
             use: {
               ...devices['Desktop Chrome'],
               storageState: { cookies: [], origins: [] },
