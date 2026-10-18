@@ -85,7 +85,7 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
   browser,
   baseURL,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const origin = requireNonproductionOrigin(baseURL);
   let a: Actor | undefined;
   let b: Actor | undefined;
@@ -182,7 +182,32 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     expect(bData.entries.some((entry) => entry.content === marker + '-a-active')).toBe(false);
     expect(bData.entries.some((entry) => entry.content === marker + '-a-archived')).toBe(false);
 
+    // P0 help and privacy must remain accessible across every supported locale.
+    const localizedHelp = [
+      { locale: 'en', summary: 'Need urgent help?', privacy: 'How your data is handled', call: 'Call 112' },
+      { locale: 'uk', summary: 'Потрібна термінова допомога?', privacy: 'Як обробляються дані', call: 'Зателефонувати 112' },
+      { locale: 'pl', summary: 'Potrzebujesz pilnej pomocy?', privacy: 'Jak przetwarzane są dane', call: 'Zadzwoń pod 112' },
+    ] as const;
+    for (const { locale, summary, privacy, call } of localizedHelp) {
+      const diary = await pageA.goto('/' + locale + '/diary', { waitUntil: 'domcontentloaded' });
+      expect(diary?.status()).toBe(200);
+      await expect(pageA.getByRole('link', { name: privacy })).toHaveAttribute('href', new RegExp('/' + locale + '/privacy'));
+      const emergency = pageA.getByText(summary, { exact: true });
+      await expect(emergency).toBeVisible();
+      await emergency.click();
+      await expect(pageA.getByRole('link', { name: call })).toHaveAttribute('href', 'tel:112');
+
+      const myDay = await pageA.goto('/' + locale + '/my-day', { waitUntil: 'domcontentloaded' });
+      expect(myDay?.status()).toBe(200);
+      await expect(pageA.getByText(summary, { exact: true })).toBeVisible();
+    }
+
+    await pageA.goto('/en/diary', { waitUntil: 'domcontentloaded' });
     const card = pageA.getByText(marker + '-a-active', { exact: true }).locator('..');
+    pageA.once('dialog', (dialog) => dialog.dismiss());
+    await card.getByRole('button', { name: 'Delete entry' }).click();
+    await assertOwned(a, aActive);
+
     pageA.once('dialog', (dialog) => dialog.accept());
     await card.getByRole('button', { name: 'Delete entry' }).click();
     await expect
