@@ -82,6 +82,15 @@ test('B2C personal journey and user isolation use real authenticated backend rea
     expect(a.moodId, 'Separate owned mood-record fixtures are mandatory').not.toBe(b.moodId);
     expect(a.diaryId, 'Separate owned diary fixtures are mandatory').not.toBe(b.diaryId);
 
+    // Fail if this preview has not enabled the server-side B2C-only gate.
+    for (const blockedPath of ['mood-risk/actionable', 'mood-feed', 'companies']) {
+      const blocked = await a.context.request.get('/api/backend/' + blockedPath, {
+        maxRedirects: 0,
+      });
+      expect(blocked.status(), blockedPath + ' must be disabled for B2C').toBe(404);
+      expect(blocked.headers()['cache-control']).toContain('no-store');
+    }
+
     const page = await a.context.newPage();
     for (const path of B2C_PAGES) {
       const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
