@@ -28,7 +28,9 @@ function requireNonproductionOrigin(baseURL: string | undefined): string {
     (process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1' &&
       process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED !== '1')
   ) {
-    throw new Error('Diary E2E requires allowlisted nonproduction preview and explicit fixture authorization');
+    throw new Error(
+      'Diary E2E requires allowlisted nonproduction preview and explicit fixture authorization',
+    );
   }
   if (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1') {
     const a = process.env.E2E_QA_A_USER_ID;
@@ -46,10 +48,16 @@ async function openActor(
   state: string,
   expectedUserId?: string,
 ): Promise<Actor> {
-  const context = await browser.newContext({ baseURL: origin, storageState: state, acceptDownloads: true });
+  const context = await browser.newContext({
+    baseURL: origin,
+    storageState: state,
+    acceptDownloads: true,
+  });
   try {
     const sessionResponse = await context.request.get('/api/auth/session');
-    expect(sessionResponse.status(), 'Zitadel session must be valid in the deployed preview').toBe(200);
+    expect(sessionResponse.status(), 'Zitadel session must be valid in the deployed preview').toBe(
+      200,
+    );
     const session = (await sessionResponse.json()) as { id?: string; role?: string };
     expect(session.id, 'A server-verified user ID is required').toBeTruthy();
     expect(session.role).not.toBe('admin');
@@ -92,11 +100,15 @@ async function assertOwned(actor: Actor, id: string): Promise<void> {
   expect(entry.id).toBe(id);
 }
 
-async function readExport(download: Download): Promise<{ format: string; version: number; entries: DiaryEntry[] }> {
+async function readExport(
+  download: Download,
+): Promise<{ format: string; version: number; entries: DiaryEntry[] }> {
   expect(download.suggestedFilename()).toMatch(/^dzvin-diary-\d{4}-\d{2}-\d{2}\.json$/);
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
-  for await (const chunk of stream) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
   const content = Buffer.concat(chunks).toString('utf8');
   const payload = JSON.parse(content) as { format: string; version: number; entries: DiaryEntry[] };
   expect(payload.format).toBe('dzvin-diary');
@@ -174,7 +186,10 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       const list = await actor.context.request.get('/api/backend/diary/user');
       expect(list.status()).toBe(200);
       const entries = (await list.json()) as Array<{ content?: string }>;
-      expect(entries.some((entry) => entry.content === foreignMarker), 'Cross-user list leakage').toBe(false);
+      expect(
+        entries.some((entry) => entry.content === foreignMarker),
+        'Cross-user list leakage',
+      ).toBe(false);
     }
 
     const crossSite = await a.context.request.delete('/api/backend/diary/' + aActive, {
@@ -183,7 +198,10 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     expect(crossSite.status(), 'Cross-origin DELETE must be rejected before mutation').toBe(403);
     await assertOwned(a, aActive);
 
-    anonymous = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
+    anonymous = await browser.newContext({
+      baseURL: origin,
+      storageState: { cookies: [], origins: [] },
+    });
     const anonymousDelete = await anonymous.request.delete('/api/backend/diary/' + aActive, {
       headers: { Origin: origin },
     });
@@ -198,10 +216,15 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     await expect(exportA).toBeEnabled();
     const [downloadA] = await Promise.all([pageA.waitForEvent('download'), exportA.click()]);
     const aData = await readExport(downloadA);
-    expect(aData.entries.some((entry) => entry.id === aActive && entry.content === marker + '-a-active')).toBe(true);
+    expect(
+      aData.entries.some((entry) => entry.id === aActive && entry.content === marker + '-a-active'),
+    ).toBe(true);
     expect(
       aData.entries.some(
-        (entry) => entry.id === aArchived && entry.content === marker + '-a-archived' && entry.isActive === true,
+        (entry) =>
+          entry.id === aArchived &&
+          entry.content === marker + '-a-archived' &&
+          entry.isActive === true,
       ),
     ).toBe(true);
     expect(aData.entries.some((entry) => entry.content === marker + '-b-private')).toBe(false);
@@ -214,20 +237,40 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       pageB.getByRole('button', { name: 'Export all diary entries (JSON)' }).click(),
     ]);
     const bData = await readExport(downloadB);
-    expect(bData.entries.some((entry) => entry.id === bOnly && entry.content === marker + '-b-private')).toBe(true);
+    expect(
+      bData.entries.some((entry) => entry.id === bOnly && entry.content === marker + '-b-private'),
+    ).toBe(true);
     expect(bData.entries.some((entry) => entry.content === marker + '-a-active')).toBe(false);
     expect(bData.entries.some((entry) => entry.content === marker + '-a-archived')).toBe(false);
 
     // P0 help and privacy must remain accessible across every supported locale.
     const localizedHelp = [
-      { locale: 'en', summary: 'Need urgent help?', privacy: 'How your data is handled', call: 'Call 112' },
-      { locale: 'uk', summary: 'Потрібна термінова допомога?', privacy: 'Як обробляються дані', call: 'Зателефонувати 112' },
-      { locale: 'pl', summary: 'Potrzebujesz pilnej pomocy?', privacy: 'Jak przetwarzane są dane', call: 'Zadzwoń pod 112' },
+      {
+        locale: 'en',
+        summary: 'Need urgent help?',
+        privacy: 'How your data is handled',
+        call: 'Call 112',
+      },
+      {
+        locale: 'uk',
+        summary: 'Потрібна термінова допомога?',
+        privacy: 'Як обробляються дані',
+        call: 'Зателефонувати 112',
+      },
+      {
+        locale: 'pl',
+        summary: 'Potrzebujesz pilnej pomocy?',
+        privacy: 'Jak przetwarzane są dane',
+        call: 'Zadzwoń pod 112',
+      },
     ] as const;
     for (const { locale, summary, privacy, call } of localizedHelp) {
       const diary = await pageA.goto('/' + locale + '/diary', { waitUntil: 'domcontentloaded' });
       expect(diary?.status()).toBe(200);
-      await expect(pageA.getByRole('link', { name: privacy })).toHaveAttribute('href', new RegExp('/' + locale + '/privacy'));
+      await expect(pageA.getByRole('link', { name: privacy })).toHaveAttribute(
+        'href',
+        new RegExp('/' + locale + '/privacy'),
+      );
       const emergency = pageA.getByText(summary, { exact: true });
       await expect(emergency).toBeVisible();
       await emergency.click();
@@ -322,6 +365,6 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       }
     }
     await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
-    expect(cleanupErrors, 'Only this run\'s QA diary fixtures must remain absent').toEqual([]);
+    expect(cleanupErrors, "Only this run's QA diary fixtures must remain absent").toEqual([]);
   }
 });
