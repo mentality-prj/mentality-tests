@@ -341,7 +341,9 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
         const deletion = await actor.context.request.delete('/api/backend/diary/' + id, {
           headers: { Origin: origin },
         });
-        if (![204, 404].includes(deletion.status())) cleanupErrors.push('Fixture deletion was not confirmed');
+        if (![204, 404].includes(deletion.status())) {
+          cleanupErrors.push('Fixture deletion was not confirmed');
+        }
         const check = await actor.context.request.get('/api/backend/diary/' + id);
         if (check.status() !== 404) cleanupErrors.push('Fixture remains visible after teardown');
       } catch {
