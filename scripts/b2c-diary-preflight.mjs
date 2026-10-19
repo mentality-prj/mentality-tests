@@ -27,7 +27,13 @@ export function assertDiaryPrivacyPreflight(env) {
   if (scopedQa) {
     const a = env.E2E_QA_A_USER_ID;
     const b = env.E2E_QA_B_USER_ID;
-    if (typeof a !== 'string' || !a.trim() || typeof b !== 'string' || !b.trim() || a === b) {
+    if (
+      typeof a !== 'string' ||
+      !a.trim() ||
+      typeof b !== 'string' ||
+      !b.trim() ||
+      a === b
+    ) {
       errors.push('Shared-backend E2E requires two distinct pinned server-verified QA user IDs');
     }
   }
@@ -47,7 +53,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const { origin } = assertDiaryPrivacyPreflight(process.env);
     console.log('B2C diary E2E preflight PASS for preview host ' + new URL(origin).hostname);
-    console.log('Supplied release SHAs are format-valid; actual deployment parity still requires independent proof');
+    console.log(
+      'Supplied release SHAs are format-valid; actual deployment parity still requires independent proof',
+    );
     console.log(
       'Diary E2E scope: ' +
         (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1'
