@@ -25,21 +25,47 @@ function requireNonproductionOrigin(baseURL: string | undefined): string {
     host === 'mentality-web.vercel.app' ||
     host.includes('-git-production-') ||
     process.env.E2E_ALLOWED_MUTATION_ORIGIN !== url.origin ||
-    process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1'
+    (process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1' &&
+      process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED !== '1')
   ) {
-    throw new Error('Diary mutation E2E requires the exact allowlisted HTTPS nonproduction preview and disposable tenant');
+    throw new Error(
+      'Diary E2E requires allowlisted nonproduction preview and explicit fixture authorization',
+    );
+  }
+  if (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1') {
+    const a = process.env.E2E_QA_A_USER_ID;
+    const b = process.env.E2E_QA_B_USER_ID;
+    if (!a?.trim() || !b?.trim() || a === b) {
+      throw new Error('Existing-backend mutation requires two distinct pinned QA user IDs');
+    }
   }
   return url.origin;
 }
 
-async function openActor(browser: Browser, origin: string, state: string): Promise<Actor> {
-  const context = await browser.newContext({ baseURL: origin, storageState: state, acceptDownloads: true });
+async function openActor(
+  browser: Browser,
+  origin: string,
+  state: string,
+  expectedUserId?: string,
+): Promise<Actor> {
+  const context = await browser.newContext({
+    baseURL: origin,
+    storageState: state,
+    acceptDownloads: true,
+  });
   try {
     const sessionResponse = await context.request.get('/api/auth/session');
-    expect(sessionResponse.status(), 'Zitadel session must be valid in the deployed preview').toBe(200);
+    expect(sessionResponse.status(), 'Zitadel session must be valid in the deployed preview').toBe(
+      200,
+    );
     const session = (await sessionResponse.json()) as { id?: string; role?: string };
     expect(session.id, 'A server-verified user ID is required').toBeTruthy();
     expect(session.role).not.toBe('admin');
+    if (expectedUserId) {
+      expect(session.id, 'Session does not belong to the explicitly approved QA identity').toBe(
+        expectedUserId,
+      );
+    }
     return { context, userId: session.id! };
   } catch (error) {
     await context.close();
@@ -52,10 +78,17 @@ async function createEntry(actor: Actor, origin: string, content: string): Promi
     headers: { Origin: origin },
     data: { content, tags: [], isActive: false },
   });
-  expect(result.status(), 'The isolated tenant must support owned diary writes').toBe(201);
+  expect(result.status(), 'The approved QA account must support owned diary writes').toBe(201);
   expect(result.headers()['cache-control']).toContain('no-store');
   const entry = (await result.json()) as { id?: string };
   expect(entry.id).toMatch(ID);
+  // Before authorizing teardown by returned ID, prove it really is our marker.
+  // If the response is inconsistent, the finally block recovers by exact marker.
+  const read = await actor.context.request.get('/api/backend/diary/' + entry.id);
+  expect(read.status()).toBe(200);
+  const stored = (await read.json()) as { id?: string; content?: string };
+  expect(stored.id).toBe(entry.id);
+  expect(stored.content).toBe(content);
   return entry.id!;
 }
 
@@ -67,11 +100,15 @@ async function assertOwned(actor: Actor, id: string): Promise<void> {
   expect(entry.id).toBe(id);
 }
 
-async function readExport(download: Download): Promise<{ format: string; version: number; entries: DiaryEntry[] }> {
+async function readExport(
+  download: Download,
+): Promise<{ format: string; version: number; entries: DiaryEntry[] }> {
   expect(download.suggestedFilename()).toMatch(/^dzvin-diary-\d{4}-\d{2}-\d{2}\.json$/);
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
-  for await (const chunk of stream) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
   const content = Buffer.concat(chunks).toString('utf8');
   const payload = JSON.parse(content) as { format: string; version: number; entries: DiaryEntry[] };
   expect(payload.format).toBe('dzvin-diary');
@@ -87,6 +124,7 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
 }) => {
   test.setTimeout(180_000);
   const origin = requireNonproductionOrigin(baseURL);
+  const sharedQa = process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1';
   let a: Actor | undefined;
   let b: Actor | undefined;
   let anonymous: BrowserContext | undefined;
@@ -94,8 +132,18 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
   const cleanupErrors: string[] = [];
   const marker = 'e2e-diary-' + randomUUID();
   try {
-    a = await openActor(browser, origin, 'playwright/.auth/b2c-a.json');
-    b = await openActor(browser, origin, 'playwright/.auth/b2c-b.json');
+    a = await openActor(
+      browser,
+      origin,
+      'playwright/.auth/b2c-a.json',
+      sharedQa ? process.env.E2E_QA_A_USER_ID : undefined,
+    );
+    b = await openActor(
+      browser,
+      origin,
+      'playwright/.auth/b2c-b.json',
+      sharedQa ? process.env.E2E_QA_B_USER_ID : undefined,
+    );
     expect(a.userId, 'Two distinct verified accounts are required').not.toBe(b.userId);
 
     // Create ONLY new disposable fixtures; never delete a pre-existing user record.
@@ -138,7 +186,10 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       const list = await actor.context.request.get('/api/backend/diary/user');
       expect(list.status()).toBe(200);
       const entries = (await list.json()) as Array<{ content?: string }>;
-      expect(entries.some((entry) => entry.content === foreignMarker), 'Cross-user list leakage').toBe(false);
+      expect(
+        entries.some((entry) => entry.content === foreignMarker),
+        'Cross-user list leakage',
+      ).toBe(false);
     }
 
     const crossSite = await a.context.request.delete('/api/backend/diary/' + aActive, {
@@ -147,7 +198,10 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     expect(crossSite.status(), 'Cross-origin DELETE must be rejected before mutation').toBe(403);
     await assertOwned(a, aActive);
 
-    anonymous = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
+    anonymous = await browser.newContext({
+      baseURL: origin,
+      storageState: { cookies: [], origins: [] },
+    });
     const anonymousDelete = await anonymous.request.delete('/api/backend/diary/' + aActive, {
       headers: { Origin: origin },
     });
@@ -162,10 +216,15 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     await expect(exportA).toBeEnabled();
     const [downloadA] = await Promise.all([pageA.waitForEvent('download'), exportA.click()]);
     const aData = await readExport(downloadA);
-    expect(aData.entries.some((entry) => entry.id === aActive && entry.content === marker + '-a-active')).toBe(true);
+    expect(
+      aData.entries.some((entry) => entry.id === aActive && entry.content === marker + '-a-active'),
+    ).toBe(true);
     expect(
       aData.entries.some(
-        (entry) => entry.id === aArchived && entry.content === marker + '-a-archived' && entry.isActive === true,
+        (entry) =>
+          entry.id === aArchived &&
+          entry.content === marker + '-a-archived' &&
+          entry.isActive === true,
       ),
     ).toBe(true);
     expect(aData.entries.some((entry) => entry.content === marker + '-b-private')).toBe(false);
@@ -178,20 +237,40 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       pageB.getByRole('button', { name: 'Export all diary entries (JSON)' }).click(),
     ]);
     const bData = await readExport(downloadB);
-    expect(bData.entries.some((entry) => entry.id === bOnly && entry.content === marker + '-b-private')).toBe(true);
+    expect(
+      bData.entries.some((entry) => entry.id === bOnly && entry.content === marker + '-b-private'),
+    ).toBe(true);
     expect(bData.entries.some((entry) => entry.content === marker + '-a-active')).toBe(false);
     expect(bData.entries.some((entry) => entry.content === marker + '-a-archived')).toBe(false);
 
     // P0 help and privacy must remain accessible across every supported locale.
     const localizedHelp = [
-      { locale: 'en', summary: 'Need urgent help?', privacy: 'How your data is handled', call: 'Call 112' },
-      { locale: 'uk', summary: 'Потрібна термінова допомога?', privacy: 'Як обробляються дані', call: 'Зателефонувати 112' },
-      { locale: 'pl', summary: 'Potrzebujesz pilnej pomocy?', privacy: 'Jak przetwarzane są dane', call: 'Zadzwoń pod 112' },
+      {
+        locale: 'en',
+        summary: 'Need urgent help?',
+        privacy: 'How your data is handled',
+        call: 'Call 112',
+      },
+      {
+        locale: 'uk',
+        summary: 'Потрібна термінова допомога?',
+        privacy: 'Як обробляються дані',
+        call: 'Зателефонувати 112',
+      },
+      {
+        locale: 'pl',
+        summary: 'Potrzebujesz pilnej pomocy?',
+        privacy: 'Jak przetwarzane są dane',
+        call: 'Zadzwoń pod 112',
+      },
     ] as const;
     for (const { locale, summary, privacy, call } of localizedHelp) {
       const diary = await pageA.goto('/' + locale + '/diary', { waitUntil: 'domcontentloaded' });
       expect(diary?.status()).toBe(200);
-      await expect(pageA.getByRole('link', { name: privacy })).toHaveAttribute('href', new RegExp('/' + locale + '/privacy'));
+      await expect(pageA.getByRole('link', { name: privacy })).toHaveAttribute(
+        'href',
+        new RegExp('/' + locale + '/privacy'),
+      );
       const emergency = pageA.getByText(summary, { exact: true });
       await expect(emergency).toBeVisible();
       await emergency.click();
@@ -228,20 +307,66 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     });
     expect(duplicateDelete.status()).toBe(404);
   } finally {
-    // Safe even if an assertion fails: only IDs created by this test are eligible for teardown.
-    for (const { actor, id } of created) {
+    // A POST can reach Mongo even if its response is lost before we record the ID.
+    // Recover ONLY exact UUID-marked fixtures from each verified QA account; never
+    // delete unmarked or pre-existing entries, and never perform collection cleanup.
+    const cleanup = new Map<string, Created>(created.map((entry) => [entry.id, entry]));
+    const actors = [
+      { actor: a, contents: new Set([marker + '-a-active', marker + '-a-archived']) },
+      { actor: b, contents: new Set([marker + '-b-private']) },
+    ];
+    for (const { actor, contents } of actors) {
+      if (!actor) continue;
+      try {
+        const list = await actor.context.request.get('/api/backend/diary/user');
+        if (list.status() !== 200) {
+          cleanupErrors.push('Cannot enumerate own QA fixture IDs for teardown');
+          continue;
+        }
+        const entries = (await list.json()) as Array<{ id?: string; content?: string }>;
+        for (const entry of entries) {
+          if (!contents.has(entry.content ?? '')) continue;
+          if (!entry.id || !ID.test(entry.id)) {
+            cleanupErrors.push('Own UUID-tagged fixture has an invalid ID');
+            continue;
+          }
+          cleanup.set(entry.id, { actor, id: entry.id });
+        }
+      } catch {
+        cleanupErrors.push('Could not recover UUID-tagged QA fixtures');
+      }
+    }
+    for (const { actor, id } of cleanup.values()) {
       try {
         const deletion = await actor.context.request.delete('/api/backend/diary/' + id, {
           headers: { Origin: origin },
         });
-        if (![204, 404].includes(deletion.status())) cleanupErrors.push('Fixture deletion was not confirmed');
+        if (![204, 404].includes(deletion.status())) {
+          cleanupErrors.push('Fixture deletion was not confirmed');
+        }
         const check = await actor.context.request.get('/api/backend/diary/' + id);
         if (check.status() !== 404) cleanupErrors.push('Fixture remains visible after teardown');
       } catch {
         cleanupErrors.push('Fixture cleanup threw an error');
       }
     }
+    for (const { actor, contents } of actors) {
+      if (!actor) continue;
+      try {
+        const list = await actor.context.request.get('/api/backend/diary/user');
+        if (list.status() !== 200) {
+          cleanupErrors.push('Cannot verify post-test QA fixture list');
+          continue;
+        }
+        const entries = (await list.json()) as Array<{ content?: string }>;
+        if (entries.some((entry) => contents.has(entry.content ?? ''))) {
+          cleanupErrors.push('UUID-tagged QA fixture remains after teardown');
+        }
+      } catch {
+        cleanupErrors.push('QA fixture teardown verification failed');
+      }
+    }
     await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
-    expect(cleanupErrors, 'Disposable diary fixtures must be fully removed').toEqual([]);
+    expect(cleanupErrors, "Only this run's QA diary fixtures must remain absent").toEqual([]);
   }
 });
