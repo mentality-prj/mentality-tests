@@ -74,6 +74,13 @@ async function createEntry(actor: Actor, origin: string, content: string): Promi
   expect(result.headers()['cache-control']).toContain('no-store');
   const entry = (await result.json()) as { id?: string };
   expect(entry.id).toMatch(ID);
+  // Before authorizing teardown by returned ID, prove it really is our marker.
+  // If the response is inconsistent, the finally block recovers by exact marker.
+  const read = await actor.context.request.get('/api/backend/diary/' + entry.id);
+  expect(read.status()).toBe(200);
+  const stored = (await read.json()) as { id?: string; content?: string };
+  expect(stored.id).toBe(entry.id);
+  expect(stored.content).toBe(content);
   return entry.id!;
 }
 
