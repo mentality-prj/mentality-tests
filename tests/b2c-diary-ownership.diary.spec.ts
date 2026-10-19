@@ -25,10 +25,8 @@ function requireNonproductionOrigin(baseURL: string | undefined): string {
     host === 'mentality-web.vercel.app' ||
     host.includes('-git-production-') ||
     process.env.E2E_ALLOWED_MUTATION_ORIGIN !== url.origin ||
-    (
-      process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1' &&
-      process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED !== '1'
-    )
+    (process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1' &&
+      process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED !== '1')
   ) {
     throw new Error('Diary E2E requires allowlisted nonproduction preview and explicit fixture authorization');
   }
@@ -56,7 +54,9 @@ async function openActor(
     expect(session.id, 'A server-verified user ID is required').toBeTruthy();
     expect(session.role).not.toBe('admin');
     if (expectedUserId) {
-      expect(session.id, 'Session does not belong to the explicitly approved QA identity').toBe(expectedUserId);
+      expect(session.id, 'Session does not belong to the explicitly approved QA identity').toBe(
+        expectedUserId,
+      );
     }
     return { context, userId: session.id! };
   } catch (error) {
@@ -257,8 +257,36 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     });
     expect(duplicateDelete.status()).toBe(404);
   } finally {
-    // Safe even if an assertion fails: only IDs created by this test are eligible for teardown.
-    for (const { actor, id } of created) {
+    // A POST can reach Mongo even if its response is lost before we record the ID.
+    // Recover ONLY exact UUID-marked fixtures from each verified QA account; never
+    // delete unmarked or pre-existing entries, and never perform collection cleanup.
+    const cleanup = new Map<string, Created>(created.map((entry) => [entry.id, entry]));
+    const actors = [
+      { actor: a, contents: new Set([marker + '-a-active', marker + '-a-archived']) },
+      { actor: b, contents: new Set([marker + '-b-private']) },
+    ];
+    for (const { actor, contents } of actors) {
+      if (!actor) continue;
+      try {
+        const list = await actor.context.request.get('/api/backend/diary/user');
+        if (list.status() !== 200) {
+          cleanupErrors.push('Cannot enumerate own QA fixture IDs for teardown');
+          continue;
+        }
+        const entries = (await list.json()) as Array<{ id?: string; content?: string }>;
+        for (const entry of entries) {
+          if (!contents.has(entry.content ?? '')) continue;
+          if (!entry.id || !ID.test(entry.id)) {
+            cleanupErrors.push('Own UUID-tagged fixture has an invalid ID');
+            continue;
+          }
+          cleanup.set(entry.id, { actor, id: entry.id });
+        }
+      } catch {
+        cleanupErrors.push('Could not recover UUID-tagged QA fixtures');
+      }
+    }
+    for (const { actor, id } of cleanup.values()) {
       try {
         const deletion = await actor.context.request.delete('/api/backend/diary/' + id, {
           headers: { Origin: origin },
@@ -270,7 +298,23 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
         cleanupErrors.push('Fixture cleanup threw an error');
       }
     }
+    for (const { actor, contents } of actors) {
+      if (!actor) continue;
+      try {
+        const list = await actor.context.request.get('/api/backend/diary/user');
+        if (list.status() !== 200) {
+          cleanupErrors.push('Cannot verify post-test QA fixture list');
+          continue;
+        }
+        const entries = (await list.json()) as Array<{ content?: string }>;
+        if (entries.some((entry) => contents.has(entry.content ?? ''))) {
+          cleanupErrors.push('UUID-tagged QA fixture remains after teardown');
+        }
+      } catch {
+        cleanupErrors.push('QA fixture teardown verification failed');
+      }
+    }
     await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
-    expect(cleanupErrors, 'Disposable diary fixtures must be fully removed').toEqual([]);
+    expect(cleanupErrors, 'Only this run\'s QA diary fixtures must remain absent').toEqual([]);
   }
 });
