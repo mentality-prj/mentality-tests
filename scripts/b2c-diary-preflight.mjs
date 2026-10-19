@@ -46,9 +46,14 @@ export function assertDiaryPrivacyPreflight(env) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const { origin } = assertDiaryPrivacyPreflight(process.env);
-    console.log('B2C diary E2E preflight PASS for isolated host ' + new URL(origin).hostname);
+    console.log('B2C diary E2E preflight PASS for preview host ' + new URL(origin).hostname);
     console.log('Supplied release SHAs are format-valid; actual deployment parity still requires independent proof');
-    console.log('Diary E2E scope: ' + (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1' ? 'pinned QA users on existing backend' : 'disposable tenant'));
+    console.log(
+      'Diary E2E scope: ' +
+        (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1'
+          ? 'pinned QA users on existing backend'
+          : 'disposable tenant'),
+    );
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
