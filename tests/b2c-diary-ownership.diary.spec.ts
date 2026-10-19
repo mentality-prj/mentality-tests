@@ -15,15 +15,35 @@ type Created = { actor: Actor; id: string };
 type DiaryEntry = { id: string; content: string; isActive: boolean };
 
 async function respondToConfirm(page: Page, button: Locator, accept: boolean): Promise<void> {
-  // Register the one dialog waiter BEFORE initiating the click; do not leave
-  // un-awaited async event handlers behind (they can double-handle a dialog).
-  const dialogEvent = page.waitForEvent('dialog');
-  const click = button.click();
-  const dialog = await dialogEvent;
-  expect(dialog.type(), 'Delete UI must use an actual browser confirm dialog').toBe('confirm');
-  if (accept) await dialog.accept();
-  else await dialog.dismiss();
-  await click;
+  await expect(button, 'Target diary action button must be visible and actionable').toBeVisible();
+  await expect(button).toBeEnabled();
+  // The SSR button may be visible before React 19 hydrates its onClick.
+  await expect
+    .poll(
+      async () =>
+        button.evaluate((element) =>
+          Object.keys(element).some((key) => {
+            if (!key.startsWith('__reactProps')) return false;
+            const props = (element as unknown as Record<string, unknown>)[key];
+            return (
+              typeof props === 'object' &&
+              props !== null &&
+              'onClick' in props &&
+              typeof props.onClick === 'function'
+            );
+          }),
+        ),
+      { message: 'REACT_DELETE_BUTTON_NOT_HYDRATED', timeout: 15_000 },
+    )
+    .toBe(true);
+  await Promise.all([
+    page.waitForEvent('dialog', { timeout: 12_000 }).then(async (dialog) => {
+      expect(dialog.type(), 'Delete UI must use a native confirm dialog').toBe('confirm');
+      if (accept) await dialog.accept();
+      else await dialog.dismiss();
+    }),
+    button.click({ timeout: 12_000 }),
+  ]);
 }
 const ID = /^[a-f0-9]{24}$/i;
 
@@ -427,5 +447,6 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
       await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
     }
     expect(cleanupErrors, "Only this run's QA diary fixtures must remain absent").toEqual([]);
+    console.log('DZVIN_RUN_SCOPED_DIARY_FIXTURE_TEARDOWN=PASS');
   }
 });
