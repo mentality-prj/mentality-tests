@@ -40,6 +40,9 @@ jobs:
       E2E_B2C_B_STORAGE_STATE_BASE64: ${{ secrets.E2E_B2C_B_STORAGE_STATE_BASE64 }}
       E2E_ALLOWED_MUTATION_ORIGIN: ${{ vars.E2E_ALLOWED_MUTATION_ORIGIN }}
       E2E_DISPOSABLE_TENANT_CONFIRMED: ${{ vars.E2E_DISPOSABLE_TENANT_CONFIRMED }}
+      E2E_QA_SHARED_BACKEND_SCOPED_APPROVED: ${{ vars.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED }}
+      E2E_QA_A_USER_ID: ${{ vars.E2E_QA_A_USER_ID }}
+      E2E_QA_B_USER_ID: ${{ vars.E2E_QA_B_USER_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -49,7 +52,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      - name: Verify nonproduction origin, isolated tenant, two sessions, and SHA inputs
+      - name: Verify nonproduction origin, approved fixture scope, two sessions, and SHA inputs
         run: node scripts/b2c-diary-preflight.mjs
       - name: Install E2E dependencies
         run: pnpm install --frozen-lockfile
