@@ -1,11 +1,23 @@
 import { randomUUID } from 'node:crypto';
 
-import { expect, test } from '@playwright/test';
-import type { Browser, BrowserContext, Download } from '@playwright/test';
+import { expect, request, test } from '@playwright/test';
+import type { APIRequestContext, Browser, BrowserContext, Download, Locator, Page } from '@playwright/test';
 
 type Actor = { context: BrowserContext; userId: string };
 type Created = { actor: Actor; id: string };
 type DiaryEntry = { id: string; content: string; isActive: boolean };
+
+async function respondToConfirm(page: Page, button: Locator, accept: boolean): Promise<void> {
+  // Register the one dialog waiter BEFORE initiating the click; do not leave
+  // un-awaited async event handlers behind (they can double-handle a dialog).
+  const dialogEvent = page.waitForEvent('dialog');
+  const click = button.click();
+  const dialog = await dialogEvent;
+  expect(dialog.type(), 'Delete UI must use an actual browser confirm dialog').toBe('confirm');
+  if (accept) await dialog.accept();
+  else await dialog.dismiss();
+  await click;
+}
 const ID = /^[a-f0-9]{24}$/i;
 
 function requireNonproductionOrigin(baseURL: string | undefined): string {
@@ -283,12 +295,10 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
 
     await pageA.goto('/en/diary', { waitUntil: 'domcontentloaded' });
     const card = pageA.getByText(marker + '-a-active', { exact: true }).locator('..');
-    pageA.once('dialog', (dialog) => dialog.dismiss());
-    await card.getByRole('button', { name: 'Delete entry' }).click();
+    await respondToConfirm(pageA, card.getByRole('button', { name: 'Delete entry' }), false);
     await assertOwned(a, aActive);
 
-    pageA.once('dialog', (dialog) => dialog.accept());
-    await card.getByRole('button', { name: 'Delete entry' }).click();
+    await respondToConfirm(pageA, card.getByRole('button', { name: 'Delete entry' }), true);
     await expect
       .poll(async () => (await a!.context.request.get('/api/backend/diary/' + aActive)).status(), {
         message: 'UI-confirmed deletion must remove the owned entry',
@@ -307,66 +317,100 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     });
     expect(duplicateDelete.status()).toBe(404);
   } finally {
-    // A POST can reach Mongo even if its response is lost before we record the ID.
-    // Recover ONLY exact UUID-marked fixtures from each verified QA account; never
-    // delete unmarked or pre-existing entries, and never perform collection cleanup.
-    const cleanup = new Map<string, Created>(created.map((entry) => [entry.id, entry]));
+    // Keep cleanup API sessions separate from the browser contexts. Browser
+    // dialog exceptions can tear down page contexts before finally executes.
+    // Restrict deletion to verified QA subjects and exact run-owned fixtures.
+    const cleanup = new Map<string, { api: APIRequestContext; id: string }>();
+    const isolatedApis: APIRequestContext[] = [];
+    const verifiedApis = new Map<Actor, APIRequestContext>();
     const actors = [
-      { actor: a, contents: new Set([marker + '-a-active', marker + '-a-archived']) },
-      { actor: b, contents: new Set([marker + '-b-private']) },
+      { actor: a, state: 'playwright/.auth/b2c-a.json', contents: new Set([marker + '-a-active', marker + '-a-archived']) },
+      { actor: b, state: 'playwright/.auth/b2c-b.json', contents: new Set([marker + '-b-private']) },
     ];
-    for (const { actor, contents } of actors) {
-      if (!actor) continue;
-      try {
-        const list = await actor.context.request.get('/api/backend/diary/user');
-        if (list.status() !== 200) {
-          cleanupErrors.push('Cannot enumerate own QA fixture IDs for teardown');
-          continue;
-        }
-        const entries = (await list.json()) as Array<{ id?: string; content?: string }>;
-        for (const entry of entries) {
-          if (!contents.has(entry.content ?? '')) continue;
-          if (!entry.id || !ID.test(entry.id)) {
-            cleanupErrors.push('Own UUID-tagged fixture has an invalid ID');
+    try {
+      for (const { actor, state, contents } of actors) {
+        if (!actor) continue;
+        try {
+          const api = await request.newContext({ baseURL: origin, storageState: state });
+          isolatedApis.push(api);
+          const session = await api.get('/api/auth/session');
+          if (session.status() !== 200) {
+            cleanupErrors.push('Detached cleanup session is not authenticated');
             continue;
           }
-          cleanup.set(entry.id, { actor, id: entry.id });
+          const identity = (await session.json()) as { id?: string };
+          if (identity.id !== actor.userId) {
+            cleanupErrors.push('Detached cleanup subject differs from the approved QA identity');
+            continue;
+          }
+          verifiedApis.set(actor, api);
+          try {
+            const list = await api.get('/api/backend/diary/user');
+            if (list.status() !== 200) {
+              cleanupErrors.push('Cannot enumerate QA fixture IDs for teardown');
+              continue;
+            }
+            const entries = (await list.json()) as Array<{ id?: string; content?: string }>;
+            const ids = new Set(
+              created.filter((entry) => entry.actor === actor).map((entry) => entry.id),
+            );
+            for (const entry of entries) {
+              if (!contents.has(entry.content ?? '')) continue;
+              if (!entry.id || !ID.test(entry.id)) {
+                cleanupErrors.push('Exact run-marked QA fixture has invalid ID');
+                continue;
+              }
+              ids.add(entry.id);
+            }
+            for (const id of ids) {
+              cleanup.set(id, { api, id });
+            }
+          } catch {
+            cleanupErrors.push('Could not recover exact run-marked QA fixtures');
+          }
+        } catch {
+          cleanupErrors.push('Cannot create detached QA teardown context');
         }
-      } catch {
-        cleanupErrors.push('Could not recover UUID-tagged QA fixtures');
       }
-    }
-    for (const { actor, id } of cleanup.values()) {
-      try {
-        const deletion = await actor.context.request.delete('/api/backend/diary/' + id, {
-          headers: { Origin: origin },
-        });
-        if (![204, 404].includes(deletion.status())) {
-          cleanupErrors.push('Fixture deletion was not confirmed');
+      for (const { api, id } of cleanup.values()) {
+        try {
+          const deletion = await api.delete('/api/backend/diary/' + id, {
+            headers: { Origin: origin },
+          });
+          if (![204, 404].includes(deletion.status())) {
+            cleanupErrors.push('Exact fixture deletion was not confirmed');
+          }
+          const check = await api.get('/api/backend/diary/' + id);
+          if (check.status() !== 404) cleanupErrors.push('Exact fixture remains visible');
+        } catch {
+          cleanupErrors.push('Detached fixture cleanup failed');
         }
-        const check = await actor.context.request.get('/api/backend/diary/' + id);
-        if (check.status() !== 404) cleanupErrors.push('Fixture remains visible after teardown');
-      } catch {
-        cleanupErrors.push('Fixture cleanup threw an error');
       }
-    }
-    for (const { actor, contents } of actors) {
-      if (!actor) continue;
-      try {
-        const list = await actor.context.request.get('/api/backend/diary/user');
-        if (list.status() !== 200) {
-          cleanupErrors.push('Cannot verify post-test QA fixture list');
+      for (const { actor, contents } of actors) {
+        if (!actor) continue;
+        const scoped = verifiedApis.get(actor);
+        if (!scoped) {
+          cleanupErrors.push('Final QA fixture check lacks a verified API session');
           continue;
         }
-        const entries = (await list.json()) as Array<{ content?: string }>;
-        if (entries.some((entry) => contents.has(entry.content ?? ''))) {
-          cleanupErrors.push('UUID-tagged QA fixture remains after teardown');
+        try {
+          const list = await scoped.get('/api/backend/diary/user');
+          if (list.status() !== 200) {
+            cleanupErrors.push('Cannot verify final QA fixture list');
+            continue;
+          }
+          const entries = (await list.json()) as Array<{ content?: string }>;
+          if (entries.some((entry) => contents.has(entry.content ?? ''))) {
+            cleanupErrors.push('Exact UUID-marked QA fixture remains after teardown');
+          }
+        } catch {
+          cleanupErrors.push('Final QA fixture verification failed');
         }
-      } catch {
-        cleanupErrors.push('QA fixture teardown verification failed');
       }
+    } finally {
+      await Promise.all(isolatedApis.map((api) => api.dispose().catch(() => undefined)));
+      await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
     }
-    await Promise.all([a?.context.close(), b?.context.close(), anonymous?.close()]);
     expect(cleanupErrors, "Only this run's QA diary fixtures must remain absent").toEqual([]);
   }
 });
