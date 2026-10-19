@@ -25,14 +25,29 @@ function requireNonproductionOrigin(baseURL: string | undefined): string {
     host === 'mentality-web.vercel.app' ||
     host.includes('-git-production-') ||
     process.env.E2E_ALLOWED_MUTATION_ORIGIN !== url.origin ||
-    process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1'
+    (
+      process.env.E2E_DISPOSABLE_TENANT_CONFIRMED !== '1' &&
+      process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED !== '1'
+    )
   ) {
-    throw new Error('Diary mutation E2E requires the exact allowlisted HTTPS nonproduction preview and disposable tenant');
+    throw new Error('Diary E2E requires allowlisted nonproduction preview and explicit fixture authorization');
+  }
+  if (process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1') {
+    const a = process.env.E2E_QA_A_USER_ID;
+    const b = process.env.E2E_QA_B_USER_ID;
+    if (!a?.trim() || !b?.trim() || a === b) {
+      throw new Error('Existing-backend mutation requires two distinct pinned QA user IDs');
+    }
   }
   return url.origin;
 }
 
-async function openActor(browser: Browser, origin: string, state: string): Promise<Actor> {
+async function openActor(
+  browser: Browser,
+  origin: string,
+  state: string,
+  expectedUserId?: string,
+): Promise<Actor> {
   const context = await browser.newContext({ baseURL: origin, storageState: state, acceptDownloads: true });
   try {
     const sessionResponse = await context.request.get('/api/auth/session');
@@ -40,6 +55,9 @@ async function openActor(browser: Browser, origin: string, state: string): Promi
     const session = (await sessionResponse.json()) as { id?: string; role?: string };
     expect(session.id, 'A server-verified user ID is required').toBeTruthy();
     expect(session.role).not.toBe('admin');
+    if (expectedUserId) {
+      expect(session.id, 'Session does not belong to the explicitly approved QA identity').toBe(expectedUserId);
+    }
     return { context, userId: session.id! };
   } catch (error) {
     await context.close();
@@ -52,7 +70,7 @@ async function createEntry(actor: Actor, origin: string, content: string): Promi
     headers: { Origin: origin },
     data: { content, tags: [], isActive: false },
   });
-  expect(result.status(), 'The isolated tenant must support owned diary writes').toBe(201);
+  expect(result.status(), 'The approved QA account must support owned diary writes').toBe(201);
   expect(result.headers()['cache-control']).toContain('no-store');
   const entry = (await result.json()) as { id?: string };
   expect(entry.id).toMatch(ID);
@@ -87,6 +105,7 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
 }) => {
   test.setTimeout(180_000);
   const origin = requireNonproductionOrigin(baseURL);
+  const sharedQa = process.env.E2E_QA_SHARED_BACKEND_SCOPED_APPROVED === '1';
   let a: Actor | undefined;
   let b: Actor | undefined;
   let anonymous: BrowserContext | undefined;
@@ -94,8 +113,18 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
   const cleanupErrors: string[] = [];
   const marker = 'e2e-diary-' + randomUUID();
   try {
-    a = await openActor(browser, origin, 'playwright/.auth/b2c-a.json');
-    b = await openActor(browser, origin, 'playwright/.auth/b2c-b.json');
+    a = await openActor(
+      browser,
+      origin,
+      'playwright/.auth/b2c-a.json',
+      sharedQa ? process.env.E2E_QA_A_USER_ID : undefined,
+    );
+    b = await openActor(
+      browser,
+      origin,
+      'playwright/.auth/b2c-b.json',
+      sharedQa ? process.env.E2E_QA_B_USER_ID : undefined,
+    );
     expect(a.userId, 'Two distinct verified accounts are required').not.toBe(b.userId);
 
     // Create ONLY new disposable fixtures; never delete a pre-existing user record.
