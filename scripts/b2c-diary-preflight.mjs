@@ -27,13 +27,7 @@ export function assertDiaryPrivacyPreflight(env) {
   if (scopedQa) {
     const a = env.E2E_QA_A_USER_ID;
     const b = env.E2E_QA_B_USER_ID;
-    if (
-      typeof a !== 'string' ||
-      !a.trim() ||
-      typeof b !== 'string' ||
-      !b.trim() ||
-      a === b
-    ) {
+    if (typeof a !== 'string' || !a.trim() || typeof b !== 'string' || !b.trim() || a === b) {
       errors.push('Shared-backend E2E requires two distinct pinned server-verified QA user IDs');
     }
   }
@@ -41,7 +35,9 @@ export function assertDiaryPrivacyPreflight(env) {
     if (typeof env[key] !== 'string' || !env[key]) errors.push(key + ' is required');
   }
   for (const key of ['E2E_DEPLOYED_WEB_SHA', 'E2E_DEPLOYED_BACKEND_SHA']) {
-    if (!/^[0-9a-f]{40}$/i.test(env[key] || '')) errors.push(key + ' must be an exact 40-character SHA');
+    if (!/^[0-9a-f]{40}$/i.test(env[key] || '')) {
+      errors.push(key + ' must be an exact 40-character SHA');
+    }
   }
   if (errors.length) {
     throw new Error('B2C diary E2E PRE-FLIGHT FAILED: ' + errors.join('; '));
