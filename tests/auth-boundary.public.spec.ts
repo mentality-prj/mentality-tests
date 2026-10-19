@@ -73,12 +73,11 @@ test.describe('Anonymous authentication and BFF boundaries', () => {
   });
 
   if (process.env.E2E_B2C_ONLY === '1') {
-    test('B2C-only personal API isolation works without authenticated cookies', async ({ request }) => {
+    test('B2C-only personal API isolation works without authenticated cookies', async ({
+      request,
+    }) => {
       const fakeId = '000000000000000000000000';
-      for (const path of [
-        '/api/backend/diary/user',
-        '/api/backend/diary/' + fakeId,
-      ]) {
+      for (const path of ['/api/backend/diary/user', '/api/backend/diary/' + fakeId]) {
         const response = await request.get(path, { maxRedirects: 0 });
         expect(response.status(), path).toBe(401);
         expect(response.headers()['cache-control'], path).toContain('no-store');
