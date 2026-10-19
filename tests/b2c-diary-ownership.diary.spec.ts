@@ -17,17 +17,36 @@ type DiaryEntry = { id: string; content: string; isActive: boolean };
 async function respondToConfirm(page: Page, button: Locator, accept: boolean): Promise<void> {
   await expect(button, 'Target diary action button must be visible and actionable').toBeVisible();
   await expect(button).toBeEnabled();
-  // Next/React SSR can show the button before its onClick handler is hydrated.
-  // A DOM click before hydration is ignored and produces no native dialog.
-  // This validates that the actual React 19 click handler was attached,
-  // without changing production code or stubbing window.confirm.
+  // React 19 server-rendered buttons can receive an inert click before hydration.
+  // Only proceed once the actual client-side onClick handler has been attached.
   await expect
     .poll(
       async () =>
         button.evaluate((element) =>
-          Object.keys(element).some(
-            (key) =>
-              key.startsWith('__reactProps
+          Object.keys(element).some((key) => {
+            if (!key.startsWith('__reactProps')) return false;
+            const props = (element as unknown as Record<string, unknown>)[key];
+            return (
+              typeof props === 'object' &&
+              props !== null &&
+              'onClick' in props &&
+              typeof props.onClick === 'function'
+            );
+          }),
+        ),
+      { message: 'REACT_DELETE_BUTTON_NOT_HYDRATED', timeout: 15_000 },
+    )
+    .toBe(true);
+  // A real native dialog is still required. Await the click and handler together.
+  await Promise.all([
+    page.waitForEvent('dialog', { timeout: 12_000 }).then(async (dialog) => {
+      expect(dialog.type(), 'Delete UI must use a native confirm dialog').toBe('confirm');
+      if (accept) await dialog.accept();
+      else await dialog.dismiss();
+    }),
+    button.click({ timeout: 12_000 }),
+  ]);
+}
 const ID = /^[a-f0-9]{24}$/i;
 
 function requireNonproductionOrigin(baseURL: string | undefined): string {
