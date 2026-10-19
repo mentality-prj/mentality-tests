@@ -229,3 +229,12 @@ This is acceptance evidence only after an actual green manual run linked to
 `mentality-web` issues #439/#513/#449. Authenticated E2E is **not passed** by
 Playwright discovery, a merged PR or a passing unit test. The separate full B2C
 read-only suite and release tests are still required.
+
+
+## B2C diary privacy E2E on the existing backend (no new infrastructure)
+
+The *diary-only* manual `Dzvin B2C diary privacy E2E` workflow can use the current Render development API and its existing MongoDB connection **without creating another backend**. This is a narrower exception than the general mood/B2B release suites above; it is not approval for their uncleanable writes. Keep the **frontend on an exact, pinned nonproduction preview** and verify its BFF points to the expected Render dev backend SHA before starting.
+
+Use two **dedicated non-admin QA identities**, never real users. With the protected `e2e` GitHub environment, configure the existing two fresh storageState secrets, `E2E_ALLOWED_MUTATION_ORIGIN` matching the preview exactly, `E2E_QA_SHARED_BACKEND_SCOPED_APPROVED=1`, and `E2E_QA_A_USER_ID` / `E2E_QA_B_USER_ID` set to their **distinct actual server-verified session IDs**. Those protected values authorize only this diary test; do not set `E2E_DISPOSABLE_TENANT_CONFIRMED=1` for a shared database. All four deploy SHA / origin workflow inputs still require independent verification. Missing/mismatched identities, origin, or approval fail before the first write.
+
+The browser scenario creates uniquely marked diary records **in QA accounts only**. It probes cross-user GET/DELETE *only on these newly created records*, exports their owned lists, and deletes only those exact fixture IDs in `finally`. The test fails when cleanup cannot be verified. Never bulk-delete an account, reset collections, or alter existing QA entries. If cleanup fails, stop further mutating runs and reconcile **only that run's marked fixtures** using those QA identities; do not use a DB-wide cleanup. Keep all other B2C release blockers (retention, clinical copy review, production callbacks, whole-account erasure) unchanged. The previously successful synthetic NestJS E2E remains independent evidence, not a substitute for this real QA1/QA2 integrated run.
