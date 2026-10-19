@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
 import { expect, request, test } from '@playwright/test';
-import type { APIRequestContext, Browser, BrowserContext, Download, Locator, Page } from '@playwright/test';
+import type {
+  APIRequestContext,
+  Browser,
+  BrowserContext,
+  Download,
+  Locator,
+  Page,
+} from '@playwright/test';
 
 type Actor = { context: BrowserContext; userId: string };
 type Created = { actor: Actor; id: string };
@@ -324,8 +331,16 @@ test('B2C diary: real two-user ownership, CSRF, export, UI delete and guaranteed
     const isolatedApis: APIRequestContext[] = [];
     const verifiedApis = new Map<Actor, APIRequestContext>();
     const actors = [
-      { actor: a, state: 'playwright/.auth/b2c-a.json', contents: new Set([marker + '-a-active', marker + '-a-archived']) },
-      { actor: b, state: 'playwright/.auth/b2c-b.json', contents: new Set([marker + '-b-private']) },
+      {
+        actor: a,
+        state: 'playwright/.auth/b2c-a.json',
+        contents: new Set([marker + '-a-active', marker + '-a-archived']),
+      },
+      {
+        actor: b,
+        state: 'playwright/.auth/b2c-b.json',
+        contents: new Set([marker + '-b-private']),
+      },
     ];
     try {
       for (const { actor, state, contents } of actors) {
