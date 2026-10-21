@@ -229,3 +229,17 @@ This is acceptance evidence only after an actual green manual run linked to
 `mentality-web` issues #439/#513/#449. Authenticated E2E is **not passed** by
 Playwright discovery, a merged PR or a passing unit test. The separate full B2C
 read-only suite and release tests are still required.
+
+## Dzvin #501: local-day write/read E2E (manual, disposable tenant only)
+
+The opt-in `dzvin-daily-checkin-chromium` suite uses **real Playwright browser contexts, two real authenticated Zitadel QA users, the Next.js BFF and the matching NestJS backend**. It covers anonymous 401, cross-origin CSRF 403, invalid timezone/boolean 400, quick/stress micro-events not consuming the full daily slot, a successful full check-in, subsequent 409, actual concurrent full-check-in collision (exactly one 201 + one 409), cross-owner denial, and browser-zone cookie synchronization for Warsaw/Kyiv.
+
+**Live testing is opt-in, not CI.** Do not run this against production. It creates three or more permanent MongoDB records (quick, stress, two full check-ins). The mood-record API has no DELETE. A separately authorized disposable MongoDB tenant **must be reset after every run, including failures**, and the reset independently verified; this suite alone does not certify cleanup. If this is not possible, do not enable the run.
+
+Configure two *disposable* low-privilege Zitadel QA accounts in the protected environment, with existing encrypted secrets `E2E_B2C_A_STORAGE_STATE_BASE64`, `E2E_B2C_B_STORAGE_STATE_BASE64`. Required variables: `E2E_BASE_URL` (a protected HTTPS **nonproduction** preview with no path), `E2E_ALLOWED_MUTATION_ORIGIN` (exact match), `E2E_DISPOSABLE_TENANT_CONFIRMED=1`, `E2E_DZVIN_DAILY_RESET_APPROVED=1`, `E2E_QA_A_USER_ID`, `E2E_QA_B_USER_ID`, `E2E_DZVIN_WEB_SHA`, `E2E_DZVIN_BACK_SHA` (40-character SHAs confirmed independently from Vercel/backend deploy metadata). The E2E code checks the **shape** of SHA inputs, not the deployed identities: verify both external deployment sources separately.
+
+```sh
+RUN_DZVIN_DAILY_E2E=1 pnpm exec playwright test --project=dzvin-daily-checkin-chromium --reporter=list
+```
+
+Start with both accounts having **no local daily check-in today**, and a known disposable database. Record the run URL/output, exact deployment SHAs, version of the Mongo partial unique index and post-run DB reset proof. Date-boundary and DST calendar arithmetic remain tested in backend/frontend deterministic suites; testing *actual server midnight transition* requires a separately controlled test clock or a timed run, and is not claimed by this E2E suite. Do not merge or deploy production #176/#539 solely because static test discovery passes.
