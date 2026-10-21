@@ -4,3 +4,6 @@ build/
 
 **/*.yaml
 **/*.yml
+
+# Existing legacy README prose is formatted manually; reformat in a dedicated docs change.
+README.md
