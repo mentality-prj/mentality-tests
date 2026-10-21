@@ -14,6 +14,7 @@ const runTwoQa = process.env.RUN_TWO_QA_E2E === '1';
 const runB2c = process.env.RUN_B2C_E2E === '1';
 const runB2cDiary = process.env.RUN_B2C_DIARY_E2E === '1';
 const runDzvinDaily = process.env.RUN_DZVIN_DAILY_E2E === '1';
+const runDzvinFeedback = process.env.RUN_DZVIN_FEEDBACK_E2E === '1';
 const baseURL = process.env.E2E_BASE_URL;
 
 if (
@@ -30,6 +31,7 @@ if (
     runB2c ||
     runB2cDiary ||
     runDzvinDaily ||
+    runDzvinFeedback ||
     runQdipAdmin)
 ) {
   throw new Error('E2E_BASE_URL is required for remote browser tests');
@@ -54,6 +56,7 @@ export default defineConfig({
     runB2c ||
     runB2cDiary ||
     runDzvinDaily ||
+    runDzvinFeedback ||
     runQdipAdmin ||
     runB2B
       ? './global-setup.ts'
@@ -203,6 +206,18 @@ export default defineConfig({
           {
             name: 'dzvin-daily-checkin-chromium',
             testMatch: '**/*.daily.spec.ts',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: { cookies: [], origins: [] },
+            },
+          },
+        ]
+      : []),
+    ...(runDzvinFeedback
+      ? [
+          {
+            name: 'dzvin-feedback-chromium',
+            testMatch: '**/*.feedback.spec.ts',
             use: {
               ...devices['Desktop Chrome'],
               storageState: { cookies: [], origins: [] },

@@ -61,7 +61,8 @@ export async function prepareAuthState(): Promise<void> {
   if (
     process.env.RUN_B2C_E2E === '1' ||
     process.env.RUN_B2C_DIARY_E2E === '1' ||
-    process.env.RUN_DZVIN_DAILY_E2E === '1'
+    process.env.RUN_DZVIN_DAILY_E2E === '1' ||
+    process.env.RUN_DZVIN_FEEDBACK_E2E === '1'
   ) {
     storageEntries.push(
       ['E2E_B2C_A_STORAGE_STATE_BASE64', join(process.cwd(), 'playwright/.auth/b2c-a.json')],
